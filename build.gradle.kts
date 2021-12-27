@@ -24,6 +24,14 @@ repositories {
     mavenCentral()
 }
 
+dependencies {
+    implementation(kotlin("stdlib-jdk8"))
+    // https://mvnrepository.com/artifact/com.github.docker-java/docker-java-core
+    implementation("com.github.docker-java:docker-java-core:3.2.12")
+    // https://mvnrepository.com/artifact/com.github.docker-java/docker-java-transport-okhttp
+    implementation("com.github.docker-java:docker-java-transport-okhttp:3.2.12")
+}
+
 // Configure Gradle IntelliJ Plugin - read more: https://github.com/JetBrains/gradle-intellij-plugin
 intellij {
     pluginName.set(properties("pluginName"))
@@ -32,6 +40,8 @@ intellij {
 
     // Plugin Dependencies. Uses `platformPlugins` property from the gradle.properties file.
     plugins.set(properties("platformPlugins").split(',').map(String::trim).filter(String::isNotEmpty))
+
+    plugins.add("java")
 }
 
 // Configure Gradle Changelog Plugin - read more: https://github.com/JetBrains/gradle-changelog-plugin
@@ -47,6 +57,7 @@ qodana {
     saveReport.set(true)
     showReport.set(System.getenv("QODANA_SHOW_REPORT")?.toBoolean() ?: false)
 }
+
 
 tasks {
     // Set the JVM compatibility versions
@@ -113,4 +124,11 @@ tasks {
         // https://plugins.jetbrains.com/docs/intellij/deployment.html#specifying-a-release-channel
         channels.set(listOf(properties("pluginVersion").split('-').getOrElse(1) { "default" }.split('.').first()))
     }
+
+    prepareSandbox {
+        exclude {
+            it.name.contains("slf4j")
+        }
+    }
+
 }
