@@ -5,10 +5,10 @@ import com.intellij.execution.configurations.ConfigurationType
 import com.intellij.icons.AllIcons
 import javax.swing.Icon
 
-class MyRunConfigType : ConfigurationType {
+class JDRunConfigType : ConfigurationType {
 
     companion object {
-        val ID = "MyRunnConfig"
+        val ID = "JDRunConfig"
     }
 
 
@@ -29,6 +29,6 @@ class MyRunConfigType : ConfigurationType {
     }
 
     override fun getConfigurationFactories(): Array<ConfigurationFactory> {
-        return arrayOf(MyConfigurationFactory(this))
+        return arrayOf(JDConfigurationFactory(this))
     }
 }

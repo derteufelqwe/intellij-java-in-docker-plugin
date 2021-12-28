@@ -1,9 +1,7 @@
-package com.github.derteufelqwe.intellijjavaindockerplugin.configs.runconfig
+package com.github.derteufelqwe.intellijjavaindockerplugin.configs
 
 import com.github.derteufelqwe.intellijjavaindockerplugin.MyBundle
-import com.github.derteufelqwe.intellijjavaindockerplugin.configs.JavaDockerRunState
-import com.github.derteufelqwe.intellijjavaindockerplugin.configs.MyConfigurationFactory
-import com.github.derteufelqwe.intellijjavaindockerplugin.configs.MyForm
+import com.github.derteufelqwe.intellijjavaindockerplugin.configs.old.TestingRunState
 import com.github.dockerjava.api.async.ResultCallback
 import com.github.dockerjava.api.command.ExecCreateCmdResponse
 import com.github.dockerjava.api.model.Frame
@@ -11,7 +9,6 @@ import com.intellij.execution.ExecutionException
 import com.intellij.execution.Executor
 import com.intellij.execution.configurations.*
 import com.intellij.execution.runners.ExecutionEnvironment
-import com.intellij.openapi.module.ModuleManager
 import com.intellij.openapi.options.SettingsEditor
 import com.intellij.openapi.progress.ProgressManager
 import com.intellij.openapi.project.Project
@@ -24,12 +21,12 @@ import java.util.concurrent.TimeUnit
 import java.util.concurrent.atomic.AtomicBoolean
 import java.util.stream.Collectors
 
-class JavaDockerRunConfiguration(project: Project, private val factory: MyConfigurationFactory, name: String) :
-    RunConfigurationBase<JavaDockerRunConfiguration>(project, factory, name), ModuleRunProfile {
+class JDRunConfiguration(project: Project, private val factory: JDConfigurationFactory, name: String) :
+    LocatableConfigurationBase<JDRunConfigurationOptions>(project, factory, name), ModuleRunProfile {
         
 
-//    override fun getOptions(): MyRunConfigurationOptions {
-//        return super.getOptions() as MyRunConfigurationOptions
+//    override fun getOptions(): JDRunConfigurationOptions {
+//        return super.getOptions() as JDRunConfigurationOptions
 //    }
 
 
@@ -46,31 +43,16 @@ class JavaDockerRunConfiguration(project: Project, private val factory: MyConfig
 //        options.setData(data)
     }
 
+
+
     override fun getConfigurationEditor(): SettingsEditor<out RunConfiguration?> {
-        return MyForm()
+        return JDForm()
     }
-
-
-    /*
-     * ModuleBasedConfiguration - for run config associated with module
-     */
 
 
     @Throws(ExecutionException::class)
     override fun getState(executor: Executor, environment: ExecutionEnvironment): RunProfileState? {
-//        StatusBar statusBar = WindowManager.getInstance().getStatusBar(project);
-//        JBPopupFactory.getInstance()
-//                .createHtmlTextBalloonBuilder("Dis is bad text", MessageType.INFO, null)
-//                .setFadeoutTime(7500)
-//                .createBalloon()
-//                .show(RelativePoint.getCenterOf(statusBar.getComponent()), Balloon.Position.above);
-
-
-        // java -classpath "/javadeps/*:/javadeps/classes" test.Main
-        val module = ModuleManager.getInstance(project).modules[0]
         val en = OrderEnumerator.orderEntries(project).recursively()
-
-
         val existing = getAvailableFiles()
 
         ProgressManager.getInstance().runProcessWithProgressSynchronously({
@@ -95,32 +77,7 @@ class JavaDockerRunConfiguration(project: Project, private val factory: MyConfig
         }, "Uploading dependencies and source code", true, project)
 
 
-//        val state = object : JavaCommandLineState(environment) {
-//
-//            override fun createJavaParameters(): JavaParameters {
-//                val params = JavaParameters()
-//                params.mainClass = "TestingKt"
-//                params.jdk = JavaParametersUtil.createProjectJdk(project, "D:\\Programme\\Java\\openjdk_11_28")
-//
-//                return params
-//            }
-//
-//            override fun startProcess(): OSProcessHandler {
-//                val process = JDProcess(factory.docker, environment.project)
-//                val processHandler = JDOSProcessHandler(process, "command", StandardCharsets.UTF_8)
-//
-//                ProcessTerminatedListener.attach(processHandler)
-//                processHandler.startNotify()
-//
-//                return processHandler
-//            }
-//
-//        }
-//
-//        return state
-
-
-        return JavaDockerRunState(environment, factory.docker)
+        return TestingRunState(environment, factory.docker)
     }
 
     private fun getAvailableFiles(): List<String> {

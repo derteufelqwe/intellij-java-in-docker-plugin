@@ -1,8 +1,12 @@
 package com.github.derteufelqwe.intellijjavaindockerplugin.configs
 
+import com.intellij.execution.configurations.LocatableRunConfigurationOptions
 import com.intellij.execution.configurations.RunConfigurationOptions
 
-class MyRunConfigurationOptions : RunConfigurationOptions() {
+/**
+ * Stores settings
+ */
+class JDRunConfigurationOptions : LocatableRunConfigurationOptions() {
 
     val myScriptName = string("").provideDelegate(this, "scriptName")
     val myData = list<String>().provideDelegate(this, "data")

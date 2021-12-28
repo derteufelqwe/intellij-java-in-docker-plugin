@@ -1,7 +1,5 @@
 package com.github.derteufelqwe.intellijjavaindockerplugin.configs;
 
-import com.github.derteufelqwe.intellijjavaindockerplugin.configs.runconfig.JavaDockerRunConfiguration;
-import com.github.derteufelqwe.intellijjavaindockerplugin.configs.runconfig.MyLocatableConfig;
 import com.intellij.openapi.options.SettingsEditor;
 import com.intellij.openapi.ui.LabeledComponent;
 import com.intellij.openapi.ui.TextFieldWithBrowseButton;
@@ -11,7 +9,7 @@ import javax.swing.*;
 import java.util.ArrayList;
 import java.util.Arrays;
 
-public class MyForm extends SettingsEditor<MyLocatableConfig> {
+public class JDForm extends SettingsEditor<JDRunConfiguration> {
 
     private JPanel myPanel;
     private LabeledComponent<TextFieldWithBrowseButton> myScriptName;
@@ -19,14 +17,14 @@ public class MyForm extends SettingsEditor<MyLocatableConfig> {
     private JRadioButton radioButton1;
 
     @Override
-    protected void resetEditorFrom(MyLocatableConfig demoRunConfiguration) {
+    protected void resetEditorFrom(JDRunConfiguration demoRunConfiguration) {
         myScriptName.getComponent().setText("demoRunConfiguration.getScriptName()");
     }
 
     @Override
-    protected void applyEditorTo(@NotNull MyLocatableConfig demoRunConfiguration) {
-//        demoRunConfiguration.setScriptName(myScriptName.getComponent().getText());
-//        demoRunConfiguration.setData(new ArrayList<>(Arrays.asList("hi")));
+    protected void applyEditorTo(@NotNull JDRunConfiguration demoRunConfiguration) {
+        demoRunConfiguration.setScriptName(myScriptName.getComponent().getText());
+        demoRunConfiguration.setData(new ArrayList<>(Arrays.asList("hi", "ho")));
     }
 
     @NotNull

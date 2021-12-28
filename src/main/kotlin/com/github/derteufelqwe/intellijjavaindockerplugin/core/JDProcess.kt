@@ -44,7 +44,7 @@ class JDProcess(private val docker: DockerClient, private val project: Project) 
         val resp = docker.execCreateCmd(MyBundle.CONTAINER_ID)
 // java -classpath "/javadeps/*:/javadeps/classes" test.Main
 // , "-agentlib:jdwp=transport=dt_socket,server=y,suspend=n,address=*:5005"
-                .withCmd( "java", "-classpath", "/javadeps/*:/javadeps/classes", "-agentlib:jdwp=transport=dt_socket,server=y,suspend=n,address=*:5005",
+                .withCmd( "java", "-classpath", "/javadeps/*:/javadeps/classes", "-agentlib:jdwp=transport=dt_socket,server=y,suspend=y,address=*:5005",
                     "test.Main", "#${MyBundle.PROCESS_ID}")
                 .withAttachStdin(true)
                 .withAttachStdout(true)

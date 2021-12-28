@@ -1,8 +1,8 @@
-package com.github.derteufelqwe.intellijjavaindockerplugin.configs.runconfig
+package com.github.derteufelqwe.intellijjavaindockerplugin.configs.old
 
 import com.github.derteufelqwe.intellijjavaindockerplugin.MyBundle
-import com.github.derteufelqwe.intellijjavaindockerplugin.configs.JavaDockerRunState
-import com.github.derteufelqwe.intellijjavaindockerplugin.configs.MyConfigurationFactory
+import com.github.derteufelqwe.intellijjavaindockerplugin.configs.JDConfigurationFactory
+import com.github.derteufelqwe.intellijjavaindockerplugin.configs.JDRunState
 import com.github.dockerjava.api.DockerClient
 import com.github.dockerjava.api.async.ResultCallback
 import com.github.dockerjava.api.command.ExecCreateCmdResponse
@@ -28,7 +28,7 @@ class MyModuleRunConfig : ModuleBasedConfiguration<JavaRunConfigurationModule, E
 
     private lateinit var docker: DockerClient
 
-    constructor(name: String?, configurationModule: JavaRunConfigurationModule, factory: MyConfigurationFactory) : super(
+    constructor(name: String?, configurationModule: JavaRunConfigurationModule, factory: JDConfigurationFactory) : super(
         name,
         configurationModule,
         factory
@@ -64,7 +64,7 @@ class MyModuleRunConfig : ModuleBasedConfiguration<JavaRunConfigurationModule, E
         }, "Uploading dependencies and source code", true, project)
 
 
-        return JavaDockerRunState(environment, docker)
+        return JDRunState(environment, docker)
     }
 
     override fun getConfigurationEditor(): SettingsEditor<out RunConfiguration> {

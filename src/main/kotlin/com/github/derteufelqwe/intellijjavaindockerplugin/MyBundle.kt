@@ -1,6 +1,8 @@
 package com.github.derteufelqwe.intellijjavaindockerplugin
 
 import com.intellij.DynamicBundle
+import com.intellij.openapi.module.ModuleManager
+import com.intellij.openapi.roots.OrderEnumerator
 import org.jetbrains.annotations.NonNls
 import org.jetbrains.annotations.PropertyKey
 
@@ -26,3 +28,14 @@ object MyBundle : DynamicBundle(BUNDLE) {
     fun messagePointer(@PropertyKey(resourceBundle = BUNDLE) key: String, vararg params: Any) =
         getLazyMessage(key, *params)
 }
+
+
+//        StatusBar statusBar = WindowManager.getInstance().getStatusBar(project);
+//        JBPopupFactory.getInstance()
+//                .createHtmlTextBalloonBuilder("Dis is bad text", MessageType.INFO, null)
+//                .setFadeoutTime(7500)
+//                .createBalloon()
+//                .show(RelativePoint.getCenterOf(statusBar.getComponent()), Balloon.Position.above);
+
+//val module = ModuleManager.getInstance(project).modules[0]
+//val en = OrderEnumerator.orderEntries(project).recursively()
