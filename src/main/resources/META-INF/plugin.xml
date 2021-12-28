@@ -14,6 +14,7 @@
         <configurationType implementation="com.github.derteufelqwe.intellijjavaindockerplugin.configs.JDRunConfigType"/>
         <programRunner id="Run" implementation="com.github.derteufelqwe.intellijjavaindockerplugin.core.MyJDRunner" order="first"/>
         <programRunner id="Debug" implementation="com.github.derteufelqwe.intellijjavaindockerplugin.core.MyJDDebugger" order="last"/>
+        <notificationGroup id="Java Docker" displayType="BALLOON"/>
     </extensions>
 
     <applicationListeners>

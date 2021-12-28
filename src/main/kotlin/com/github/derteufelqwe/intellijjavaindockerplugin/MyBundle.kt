@@ -1,6 +1,8 @@
 package com.github.derteufelqwe.intellijjavaindockerplugin
 
 import com.intellij.DynamicBundle
+import com.intellij.notification.Notification
+import com.intellij.notification.NotificationType
 import com.intellij.openapi.module.ModuleManager
 import com.intellij.openapi.roots.OrderEnumerator
 import org.jetbrains.annotations.NonNls
@@ -39,3 +41,6 @@ object MyBundle : DynamicBundle(BUNDLE) {
 
 //val module = ModuleManager.getInstance(project).modules[0]
 //val en = OrderEnumerator.orderEntries(project).recursively()
+
+//val n = Notification("Java Docker", "Content", NotificationType.ERROR)
+//Notifications.Bus.notify(n)
