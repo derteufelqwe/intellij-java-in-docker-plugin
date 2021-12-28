@@ -1,17 +1,15 @@
 package com.github.derteufelqwe.intellijjavaindockerplugin.configs
 
+import com.github.derteufelqwe.intellijjavaindockerplugin.configs.runconfig.MyLocatableConfig
+import com.github.derteufelqwe.intellijjavaindockerplugin.configs.runconfig.MyModuleRunConfig
 import com.github.dockerjava.api.DockerClient
 import com.github.dockerjava.core.DefaultDockerClientConfig
 import com.github.dockerjava.core.DockerClientImpl
 import com.github.dockerjava.okhttp.OkDockerHttpClient
-import com.intellij.execution.Executor
-import com.intellij.execution.JavaRunConfigurationBase
-import com.intellij.execution.ShortenCommandLine
-import com.intellij.execution.configurations.*
-import com.intellij.execution.runners.ExecutionEnvironment
-import com.intellij.openapi.components.BaseState
-import com.intellij.openapi.module.Module
-import com.intellij.openapi.options.SettingsEditor
+import com.intellij.execution.configurations.ConfigurationFactory
+import com.intellij.execution.configurations.ConfigurationType
+import com.intellij.execution.configurations.JavaRunConfigurationModule
+import com.intellij.execution.configurations.RunConfiguration
 import com.intellij.openapi.project.Project
 
 class MyConfigurationFactory(type: ConfigurationType) : ConfigurationFactory(type) {
@@ -27,16 +25,13 @@ class MyConfigurationFactory(type: ConfigurationType) : ConfigurationFactory(typ
 //        return MyRunConfigurationOptions::class.java
 //    }
 
-    override fun createConfiguration(name: String?, template: RunConfiguration): RunConfiguration {
-        return super.createConfiguration(name, template)
-    }
-
     override fun createTemplateConfiguration(project: Project): RunConfiguration {
-        return JavaDockerRunConfiguration(
-            project,
-            this,
-            "Arne"
-        );
+        return MyLocatableConfig(project, this, "Arne")
+//        return JavaDockerRunConfiguration(
+//            project,
+//            this,
+//            "Arne"
+//        );
     }
 
 

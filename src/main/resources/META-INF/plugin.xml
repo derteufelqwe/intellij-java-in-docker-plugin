@@ -12,6 +12,8 @@
         <applicationService serviceImplementation="com.github.derteufelqwe.intellijjavaindockerplugin.services.MyApplicationService"/>
         <projectService serviceImplementation="com.github.derteufelqwe.intellijjavaindockerplugin.services.MyProjectService"/>
         <configurationType implementation="com.github.derteufelqwe.intellijjavaindockerplugin.configs.MyRunConfigType"/>
+        <programRunner id="Run" implementation="com.github.derteufelqwe.intellijjavaindockerplugin.core.MyJDRunner" order="first"/>
+        <programRunner id="Debug" implementation="com.github.derteufelqwe.intellijjavaindockerplugin.core.MyJDDebugger" order="last"/>
     </extensions>
 
     <applicationListeners>

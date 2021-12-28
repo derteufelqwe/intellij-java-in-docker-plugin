@@ -10,7 +10,11 @@ private const val BUNDLE = "messages.MyBundle"
 object MyBundle : DynamicBundle(BUNDLE) {
 
     @JvmStatic
-    val CONTAINER_ID = "ae8e9f800cd032f99bac4e51738db80e85794c03525ff2a63a2963eb920145cd"
+    val CONTAINER_ID = "3e45e720f774e2ca8ea4b221e29e279b04a267991c234d1b00a34fb8b6e44edf"
+
+    @JvmStatic
+    val PROCESS_ID = "jd_process_id"
+
 
     @Suppress("SpreadOperator")
     @JvmStatic

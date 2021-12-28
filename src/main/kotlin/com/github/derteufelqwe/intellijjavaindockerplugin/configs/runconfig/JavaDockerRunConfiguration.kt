@@ -1,39 +1,24 @@
-package com.github.derteufelqwe.intellijjavaindockerplugin.configs
+package com.github.derteufelqwe.intellijjavaindockerplugin.configs.runconfig
 
 import com.github.derteufelqwe.intellijjavaindockerplugin.MyBundle
-import com.github.derteufelqwe.intellijjavaindockerplugin.core.JDProcess
+import com.github.derteufelqwe.intellijjavaindockerplugin.configs.JavaDockerRunState
+import com.github.derteufelqwe.intellijjavaindockerplugin.configs.MyConfigurationFactory
+import com.github.derteufelqwe.intellijjavaindockerplugin.configs.MyForm
 import com.github.dockerjava.api.async.ResultCallback
 import com.github.dockerjava.api.command.ExecCreateCmdResponse
 import com.github.dockerjava.api.model.Frame
 import com.intellij.execution.ExecutionException
-import com.intellij.execution.ExecutionResult
 import com.intellij.execution.Executor
 import com.intellij.execution.configurations.*
-import com.intellij.execution.filters.TextConsoleBuilderFactory
-import com.intellij.execution.process.BaseOSProcessHandler
-import com.intellij.execution.process.OSProcessHandler
-import com.intellij.execution.process.ProcessHandler
-import com.intellij.execution.process.ProcessTerminatedListener
-import com.intellij.execution.runners.DebuggableRunProfileState
 import com.intellij.execution.runners.ExecutionEnvironment
-import com.intellij.execution.runners.ProgramRunner
-import com.intellij.execution.runners.RunConfigurationWithSuppressedDefaultRunAction
-import com.intellij.openapi.module.Module
 import com.intellij.openapi.module.ModuleManager
 import com.intellij.openapi.options.SettingsEditor
 import com.intellij.openapi.progress.ProgressManager
 import com.intellij.openapi.project.Project
 import com.intellij.openapi.roots.OrderEnumerator
 import com.intellij.openapi.vfs.newvfs.impl.FsRoot
-import com.intellij.xdebugger.XDebugProcess
-import com.intellij.xdebugger.XDebugSession
-import org.jdom.Element
-import org.jetbrains.concurrency.Promise
-import org.jetbrains.debugger.DebuggableRunConfiguration
 import java.io.Closeable
 import java.io.IOException
-import java.net.InetSocketAddress
-import java.nio.charset.StandardCharsets
 import java.util.*
 import java.util.concurrent.TimeUnit
 import java.util.concurrent.atomic.AtomicBoolean
@@ -110,25 +95,32 @@ class JavaDockerRunConfiguration(project: Project, private val factory: MyConfig
         }, "Uploading dependencies and source code", true, project)
 
 
-        return object : JavaCommandLineState(environment) {
-            override fun createJavaParameters(): JavaParameters {
-                return JavaParameters()
-            }
+//        val state = object : JavaCommandLineState(environment) {
+//
+//            override fun createJavaParameters(): JavaParameters {
+//                val params = JavaParameters()
+//                params.mainClass = "TestingKt"
+//                params.jdk = JavaParametersUtil.createProjectJdk(project, "D:\\Programme\\Java\\openjdk_11_28")
+//
+//                return params
+//            }
+//
+//            override fun startProcess(): OSProcessHandler {
+//                val process = JDProcess(factory.docker, environment.project)
+//                val processHandler = JDOSProcessHandler(process, "command", StandardCharsets.UTF_8)
+//
+//                ProcessTerminatedListener.attach(processHandler)
+//                processHandler.startNotify()
+//
+//                return processHandler
+//            }
+//
+//        }
+//
+//        return state
 
-            override fun startProcess(): OSProcessHandler {
-                val process = JDProcess(factory.docker, environment.project)
-                val processHandler = OSProcessHandler(process, "command", StandardCharsets.UTF_8)
 
-                ProcessTerminatedListener.attach(processHandler)
-                processHandler.startNotify()
-
-                return processHandler
-            }
-
-
-        }
-
-//        return JavaDockerRunState(environment, factory.docker)
+        return JavaDockerRunState(environment, factory.docker)
     }
 
     private fun getAvailableFiles(): List<String> {
