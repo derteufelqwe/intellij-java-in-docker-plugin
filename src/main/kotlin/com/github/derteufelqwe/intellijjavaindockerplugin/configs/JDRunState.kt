@@ -12,12 +12,8 @@ import java.nio.charset.StandardCharsets
 
 class JDRunState(env: ExecutionEnvironment, val docker: DockerClient) : CommandLineState(env) {
 
-    override fun getRunnerSettings(): RunnerSettings? {
-        return super.getRunnerSettings()
-    }
-
     override fun startProcess(): ProcessHandler {
-        val process = JDProcess(docker, environment.project)
+        val process = JDProcess(docker, environment)
         val processHandler: ProcessHandler = BaseOSProcessHandler(process, "command", StandardCharsets.UTF_8)
 
         ProcessTerminatedListener.attach(processHandler)
@@ -25,4 +21,5 @@ class JDRunState(env: ExecutionEnvironment, val docker: DockerClient) : CommandL
 
         return processHandler
     }
+
 }

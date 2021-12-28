@@ -1,6 +1,7 @@
 package com.github.derteufelqwe.intellijjavaindockerplugin.core
 
 import com.github.derteufelqwe.intellijjavaindockerplugin.MyBundle
+import com.github.derteufelqwe.intellijjavaindockerplugin.configs.JDRunConfiguration
 import com.github.derteufelqwe.intellijjavaindockerplugin.utiliity.BufferInputStream
 import com.github.derteufelqwe.intellijjavaindockerplugin.utiliity.BufferOutputStream
 import com.github.derteufelqwe.intellijjavaindockerplugin.utiliity.CollectCallback
@@ -8,7 +9,9 @@ import com.github.dockerjava.api.DockerClient
 import com.github.dockerjava.api.async.ResultCallback
 import com.github.dockerjava.api.model.Frame
 import com.github.dockerjava.api.model.StreamType
+import com.intellij.execution.executors.DefaultDebugExecutor
 import com.intellij.execution.executors.DefaultRunExecutor
+import com.intellij.execution.runners.ExecutionEnvironment
 import com.intellij.openapi.module.ModuleManager
 import com.intellij.openapi.project.Project
 import com.intellij.openapi.roots.OrderEnumerator
@@ -21,7 +24,7 @@ import java.net.SocketException
 import java.util.concurrent.TimeUnit
 import java.util.regex.Pattern
 
-class JDProcess(private val docker: DockerClient, private val project: Project) : Process() {
+class JDProcess(private val docker: DockerClient, private val environment: ExecutionEnvironment) : Process() {
 
     private var exitValue = -1
 
@@ -38,14 +41,20 @@ class JDProcess(private val docker: DockerClient, private val project: Project) 
     fun start() {
         TimeUnit.SECONDS.sleep(1)
 
-        val module = ModuleManager.getInstance(project).modules[0]
-        val en = OrderEnumerator.orderEntries(project).recursively()
+        var cmd = mutableListOf("java", "-classpath", "/javadeps/*:/javadeps/classes")
 
-        val resp = docker.execCreateCmd(MyBundle.CONTAINER_ID)
+        if (environment.executor is DefaultDebugExecutor) {
+            cmd.add("-agentlib:jdwp=transport=dt_socket,server=y,suspend=y,address=*:5005")
+        }
+
+        cmd.add("test.Main")
+        cmd.add("#${MyBundle.PROCESS_ID}")
+
+
 // java -classpath "/javadeps/*:/javadeps/classes" test.Main
 // , "-agentlib:jdwp=transport=dt_socket,server=y,suspend=n,address=*:5005"
-                .withCmd( "java", "-classpath", "/javadeps/*:/javadeps/classes", "-agentlib:jdwp=transport=dt_socket,server=y,suspend=y,address=*:5005",
-                    "test.Main", "#${MyBundle.PROCESS_ID}")
+        val resp = docker.execCreateCmd(MyBundle.CONTAINER_ID)
+                .withCmd(*cmd.toTypedArray())
                 .withAttachStdin(true)
                 .withAttachStdout(true)
                 .withAttachStderr(true)

@@ -65,7 +65,7 @@ class DebuggableJDRunState(private val myEnvironment: ExecutionEnvironment?, pri
 
     @Throws(ExecutionException::class)
     protected fun startProcess(): ProcessHandler {
-        val process = JDProcess(docker, myEnvironment!!.project)
+        val process = JDProcess(docker, myEnvironment!!)
         val processHandler: ProcessHandler = BaseOSProcessHandler(process, "command", StandardCharsets.UTF_8)
 
         ProcessTerminatedListener.attach(processHandler)

@@ -22,27 +22,12 @@ import java.util.concurrent.atomic.AtomicBoolean
 import java.util.stream.Collectors
 
 class JDRunConfiguration(project: Project, private val factory: JDConfigurationFactory, name: String) :
-    LocatableConfigurationBase<JDRunConfigurationOptions>(project, factory, name), ModuleRunProfile {
+    LocatableConfigurationBase<JDRunConfigurationOptions>(project, factory, name), RunProfileWithCompileBeforeLaunchOption {
         
 
-//    override fun getOptions(): JDRunConfigurationOptions {
-//        return super.getOptions() as JDRunConfigurationOptions
-//    }
-
-
-    fun getScriptName(): String? {
-        return "name"
-//        return options.getScriptName()
+    override fun getOptions(): JDRunConfigurationOptions {
+        return super.getOptions() as JDRunConfigurationOptions
     }
-
-    fun setScriptName(scriptName: String?) {
-//        options.setScriptName(scriptName)
-    }
-
-    fun setData(data: MutableList<String>) {
-//        options.setData(data)
-    }
-
 
 
     override fun getConfigurationEditor(): SettingsEditor<out RunConfiguration?> {
@@ -77,7 +62,8 @@ class JDRunConfiguration(project: Project, private val factory: JDConfigurationF
         }, "Uploading dependencies and source code", true, project)
 
 
-        return TestingRunState(environment, factory.docker)
+//        return TestingRunState(environment, factory.docker)
+        return JDRunState(environment, factory.docker)
     }
 
     private fun getAvailableFiles(): List<String> {
