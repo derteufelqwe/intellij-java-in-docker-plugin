@@ -1,10 +1,8 @@
 package com.github.derteufelqwe.intellijjavaindockerplugin.core
 
 import com.github.derteufelqwe.intellijjavaindockerplugin.configs.JDRunConfiguration
-import com.github.derteufelqwe.intellijjavaindockerplugin.configs.old.MyLocatableConfig
-import com.intellij.debugger.engine.DebuggerUtils
+import com.github.derteufelqwe.intellijjavaindockerplugin.utiliity.Utils
 import com.intellij.debugger.impl.GenericDebuggerRunner
-import com.intellij.execution.configurations.JavaCommandLine
 import com.intellij.execution.configurations.RemoteConnection
 import com.intellij.execution.configurations.RunProfile
 import com.intellij.execution.configurations.RunProfileState
@@ -33,11 +31,14 @@ class MyJDDebugger : GenericDebuggerRunner() {
         val executor = environment.executor
 
         if (executor is DefaultDebugExecutor) {
-//            val port = DebuggerUtils.getInstance().findAvailableDebugAddress(true)
-//            val stateWithDebug = (state as JavaCommandLine)
-//            stateWithDebug.javaParameters.vmParametersList.addParametersString("-Xdebug")
-//            stateWithDebug.javaParameters.vmParametersList.addParametersString("-agentlib:jdwp=transport=dt_socket,server=y,suspend=y,address=$port")
-            val conn = RemoteConnection(true, "ubuntu1", "5005", false)
+            val options = Utils.getOptions(environment)
+            val port = options.port
+
+            if (port <= 0) {
+                throw RuntimeException("Port is somehow not set.")
+            }
+
+            val conn = RemoteConnection(true, "ubuntu1", port.toString(), false)
 
             return super.attachVirtualMachine(state, environment, conn, true)
         }

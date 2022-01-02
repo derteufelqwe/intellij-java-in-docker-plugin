@@ -25,10 +25,28 @@ class JDRunConfigurationOptions : LocatableRunConfigurationOptions() {
         get() = pReuseContainer.getValue(this)
         set(value) = pReuseContainer.setValue(this, value)
 
+    // Checked = add --rm flag to container
+    private val pRemoveContainer = property(false).provideDelegate(this, "removeContainer")
+    var removeContainer: Boolean
+        get() = pRemoveContainer.getValue(this)
+        set(value) = pRemoveContainer.setValue(this, value)
+
     // The current containerID / enter a container ID if you want to use an existing one
     private val pContainerId = string("").provideDelegate(this, "containerId")
     var containerId: String?
         get() = pContainerId.getValue(this)
         set(value) = pContainerId.setValue(this, value)
+
+    // Hidden containerID, which stores the currently running containers ID
+    private val pHiddenContainerId = string("").provideDelegate(this, "hiddenContainerId")
+    var hiddenContainerId: String?
+        get() = pHiddenContainerId.getValue(this)
+        set(value) = pHiddenContainerId.setValue(this, value)
+
+    // Stores the port of the running run configuration
+    private val pHiddenPort = property(-1).provideDelegate(this, "hiddenPort")
+    var port: Int
+        get() = pHiddenPort.getValue(this)
+        set(value) = pHiddenPort.setValue(this, value)
 
 }

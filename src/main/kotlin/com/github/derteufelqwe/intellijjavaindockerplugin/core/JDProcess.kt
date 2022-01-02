@@ -5,6 +5,7 @@ import com.github.derteufelqwe.intellijjavaindockerplugin.configs.JDRunConfigura
 import com.github.derteufelqwe.intellijjavaindockerplugin.utiliity.BufferInputStream
 import com.github.derteufelqwe.intellijjavaindockerplugin.utiliity.BufferOutputStream
 import com.github.derteufelqwe.intellijjavaindockerplugin.utiliity.CollectCallback
+import com.github.derteufelqwe.intellijjavaindockerplugin.utiliity.Utils
 import com.github.dockerjava.api.DockerClient
 import com.github.dockerjava.api.async.ResultCallback
 import com.github.dockerjava.api.model.Frame
@@ -38,10 +39,10 @@ class JDProcess(private val docker: DockerClient, private val environment: Execu
     }
 
 
-    fun start() {
+    private fun start() {
         TimeUnit.SECONDS.sleep(1)
 
-        var cmd = mutableListOf("java", "-classpath", "/javadeps/*:/javadeps/classes")
+        val cmd = mutableListOf("java", "-classpath", "/javadeps/*:/javadeps/classes")
 
         if (environment.executor is DefaultDebugExecutor) {
             cmd.add("-agentlib:jdwp=transport=dt_socket,server=y,suspend=y,address=*:5005")
@@ -51,9 +52,7 @@ class JDProcess(private val docker: DockerClient, private val environment: Execu
         cmd.add("#${MyBundle.PROCESS_ID}")
 
 
-// java -classpath "/javadeps/*:/javadeps/classes" test.Main
-// , "-agentlib:jdwp=transport=dt_socket,server=y,suspend=n,address=*:5005"
-        val resp = docker.execCreateCmd(MyBundle.CONTAINER_ID)
+        val resp = docker.execCreateCmd(Utils.getOptions(environment).hiddenContainerId!!)
                 .withCmd(*cmd.toTypedArray())
                 .withAttachStdin(true)
                 .withAttachStdout(true)
@@ -134,27 +133,33 @@ class JDProcess(private val docker: DockerClient, private val environment: Execu
     }
 
     override fun destroy() {
+        shutdown("SIGTERM")
+        println("destroy")
+    }
+
+    override fun destroyForcibly(): Process {
+        shutdown("SIGKILL")
+        println("destroy forcibly")
+        return this
+    }
+
+    private fun shutdown(signal: String) {
         input.close()
 
-        val exec = docker.inspectExecCmd(this.execId!!).exec()
-        val top = docker.topContainerCmd(MyBundle.CONTAINER_ID).exec();
-
-        val pids = getActivePIDs()
+        val containerID = Utils.getOptions(environment).hiddenContainerId!!
+        val pids = getActivePIDs(containerID)
 
         pids.forEach {
-            stopPid(it)
+            stopPid(it, containerID, signal)
         }
 
         output.close()
         error.close()
         exitValue = 0
-
-        println("destroy")
     }
 
-
-    private fun getActivePIDs(): List<Int> {
-        val res = docker.execCreateCmd(MyBundle.CONTAINER_ID)
+    private fun getActivePIDs(containerId: String): List<Int> {
+        val res = docker.execCreateCmd(containerId)
             .withCmd("sh", "-c", "ps aux | grep ${MyBundle.PROCESS_ID}")
             .withAttachStdout(true)
             .withAttachStderr(true)
@@ -182,20 +187,15 @@ class JDProcess(private val docker: DockerClient, private val environment: Execu
         return pids
     }
 
-    private fun stopPid(pid: Int) {
-        val res = docker.execCreateCmd(MyBundle.CONTAINER_ID)
-            .withCmd("kill", "-SIGTERM", pid.toString())
+    private fun stopPid(pid: Int, containerId: String, signal: String) {
+        val res = docker.execCreateCmd(containerId)
+            .withCmd("kill", "-$signal", pid.toString())
             .withAttachStdout(true)
             .withAttachStderr(true)
             .exec()
 
-        val cb = docker.execStartCmd(res.id)
+        docker.execStartCmd(res.id)
             .exec(CollectCallback())
-
-        val r = cb.result
     }
 
-    override fun destroyForcibly(): Process {
-        return super.destroyForcibly()
-    }
 }

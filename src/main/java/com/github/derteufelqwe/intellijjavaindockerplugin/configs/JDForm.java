@@ -16,6 +16,7 @@ public class JDForm extends SettingsEditor<JDRunConfiguration> {
     private JPanel dockerConfig;
     private LabeledComponent<JTextField> dockerImage;
     private LabeledComponent<JTextField> containerId;
+    private JCheckBox removeContainer;
 
 
     @Override
@@ -25,6 +26,7 @@ public class JDForm extends SettingsEditor<JDRunConfiguration> {
         mainClass.getComponent().setText(options.getMainClass());
         dockerImage.getComponent().setText(options.getDockerImage());
         reuseContainer.setSelected(options.getReuseContainer());
+        removeContainer.setSelected(options.getRemoveContainer());
         containerId.getComponent().setText(options.getContainerId());
     }
 
@@ -35,6 +37,7 @@ public class JDForm extends SettingsEditor<JDRunConfiguration> {
         options.setMainClass(mainClass.getComponent().getText());
         options.setDockerImage(dockerImage.getComponent().getText());
         options.setReuseContainer(reuseContainer.isSelected());
+        options.setRemoveContainer(removeContainer.isSelected());
         options.setContainerId(containerId.getComponent().getText());
     }
 

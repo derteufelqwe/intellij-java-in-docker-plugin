@@ -44,3 +44,6 @@ object MyBundle : DynamicBundle(BUNDLE) {
 
 //val n = Notification("Java Docker", "Content", NotificationType.ERROR)
 //Notifications.Bus.notify(n)
+
+// java -classpath "/javadeps/*:/javadeps/classes" test.Main
+// , "-agentlib:jdwp=transport=dt_socket,server=y,suspend=n,address=*:5005"

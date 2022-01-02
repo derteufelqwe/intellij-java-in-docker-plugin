@@ -1,7 +1,6 @@
 package com.github.derteufelqwe.intellijjavaindockerplugin.core
 
 import com.github.derteufelqwe.intellijjavaindockerplugin.configs.JDRunConfiguration
-import com.github.derteufelqwe.intellijjavaindockerplugin.configs.old.MyLocatableConfig
 import com.intellij.execution.configurations.RunProfile
 import com.intellij.execution.impl.DefaultJavaProgramRunner
 import com.intellij.execution.runners.ExecutionEnvironment
