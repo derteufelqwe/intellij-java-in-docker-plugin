@@ -1,7 +1,6 @@
 package com.github.derteufelqwe.intellijjavaindockerplugin.core
 
 import com.github.derteufelqwe.intellijjavaindockerplugin.MyBundle
-import com.github.derteufelqwe.intellijjavaindockerplugin.configs.JDRunConfiguration
 import com.github.derteufelqwe.intellijjavaindockerplugin.utiliity.BufferInputStream
 import com.github.derteufelqwe.intellijjavaindockerplugin.utiliity.BufferOutputStream
 import com.github.derteufelqwe.intellijjavaindockerplugin.utiliity.CollectCallback
@@ -10,29 +9,31 @@ import com.github.dockerjava.api.DockerClient
 import com.github.dockerjava.api.async.ResultCallback
 import com.github.dockerjava.api.model.Frame
 import com.github.dockerjava.api.model.StreamType
+import com.intellij.debugger.engine.RemoteDebugProcessHandler
+import com.intellij.execution.KillableProcess
 import com.intellij.execution.executors.DefaultDebugExecutor
-import com.intellij.execution.executors.DefaultRunExecutor
+import com.intellij.execution.lineMarker.RunLineMarkerContributor
 import com.intellij.execution.runners.ExecutionEnvironment
-import com.intellij.openapi.module.ModuleManager
-import com.intellij.openapi.project.Project
-import com.intellij.openapi.roots.OrderEnumerator
-import okhttp3.internal.closeQuietly
+import org.jetbrains.debugger.RemoteDebugConfiguration
 import java.io.Closeable
 import java.io.IOException
 import java.io.InputStream
 import java.io.OutputStream
 import java.net.SocketException
+import java.util.concurrent.CompletableFuture
 import java.util.concurrent.TimeUnit
 import java.util.regex.Pattern
 
 class JDProcess(private val docker: DockerClient, private val environment: ExecutionEnvironment) : Process() {
 
     private var exitValue = -1
+    private val options = Utils.getOptions(environment)
 
     private val output = BufferInputStream()
     private val error = BufferInputStream()
     private val input = BufferOutputStream()
     private var execId: String? = null
+    private var stopCount = 0
 
     init {
         println("Creating process")
@@ -48,17 +49,16 @@ class JDProcess(private val docker: DockerClient, private val environment: Execu
             cmd.add("-agentlib:jdwp=transport=dt_socket,server=y,suspend=y,address=*:5005")
         }
 
-        cmd.add("test.Main")
+        cmd.add(options.mainClass!!)
         cmd.add("#${MyBundle.PROCESS_ID}")
 
 
         val resp = docker.execCreateCmd(Utils.getOptions(environment).hiddenContainerId!!)
-                .withCmd(*cmd.toTypedArray())
-                .withAttachStdin(true)
-                .withAttachStdout(true)
-                .withAttachStderr(true)
-                .withTty(true)
-                .exec()
+            .withCmd(*cmd.toTypedArray())
+            .withAttachStdin(true)
+            .withAttachStdout(true)
+            .withAttachStderr(true)
+            .exec()
 
         docker.execStartCmd(resp.id)
             .withStdIn(input.input)
@@ -133,18 +133,21 @@ class JDProcess(private val docker: DockerClient, private val environment: Execu
     }
 
     override fun destroy() {
-        shutdown("SIGTERM")
-        println("destroy")
+        if (stopCount == 0) {
+            shutdown("SIGTERM")
+            println("destroy")
+
+        } else {
+            shutdown("SIGKILL")
+            println("destroy kill")
+        }
+
+        stopCount += 1
     }
 
-    override fun destroyForcibly(): Process {
-        shutdown("SIGKILL")
-        println("destroy forcibly")
-        return this
-    }
 
     private fun shutdown(signal: String) {
-        input.close()
+//        input.close()
 
         val containerID = Utils.getOptions(environment).hiddenContainerId!!
         val pids = getActivePIDs(containerID)
@@ -153,9 +156,9 @@ class JDProcess(private val docker: DockerClient, private val environment: Execu
             stopPid(it, containerID, signal)
         }
 
-        output.close()
-        error.close()
-        exitValue = 0
+//        output.close()
+//        error.close()
+//        exitValue = 0
     }
 
     private fun getActivePIDs(containerId: String): List<Int> {

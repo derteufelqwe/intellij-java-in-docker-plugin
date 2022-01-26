@@ -4,22 +4,41 @@ import com.github.derteufelqwe.intellijjavaindockerplugin.utiliity.CollectCallba
 import com.github.derteufelqwe.intellijjavaindockerplugin.utiliity.Utils
 import com.github.dockerjava.api.async.ResultCallback
 import com.github.dockerjava.api.command.ExecCreateCmdResponse
+import com.github.dockerjava.api.exception.NotFoundException
 import com.github.dockerjava.api.model.*
 import com.intellij.execution.ExecutionException
 import com.intellij.execution.Executor
+import com.intellij.execution.KillableProcess
 import com.intellij.execution.configurations.LocatableConfigurationBase
 import com.intellij.execution.configurations.RunConfiguration
 import com.intellij.execution.configurations.RunProfileState
 import com.intellij.execution.configurations.RunProfileWithCompileBeforeLaunchOption
 import com.intellij.execution.runners.ExecutionEnvironment
 import com.intellij.notification.Notification
+import com.intellij.notification.NotificationGroupManager
 import com.intellij.notification.NotificationType
 import com.intellij.notification.Notifications
+import com.intellij.openapi.application.ApplicationManager
+import com.intellij.openapi.application.ReadAction
 import com.intellij.openapi.options.SettingsEditor
+import com.intellij.openapi.progress.ProgressIndicator
 import com.intellij.openapi.progress.ProgressManager
+import com.intellij.openapi.progress.Task
+import com.intellij.openapi.progress.impl.BackgroundableProcessIndicator
+import com.intellij.openapi.progress.util.AbstractProgressIndicatorBase
+import com.intellij.openapi.progress.util.ProgressWindow
 import com.intellij.openapi.project.Project
 import com.intellij.openapi.roots.OrderEnumerator
+import com.intellij.openapi.ui.MessageType
+import com.intellij.openapi.ui.popup.Balloon
+import com.intellij.openapi.ui.popup.JBPopupFactory
+import com.intellij.openapi.util.NlsContexts
 import com.intellij.openapi.vfs.newvfs.impl.FsRoot
+import com.intellij.openapi.wm.StatusBar
+import com.intellij.openapi.wm.WindowManager
+import com.intellij.ui.awt.RelativePoint
+import com.intellij.util.Time
+import java.awt.TrayIcon
 import java.io.Closeable
 import java.io.IOException
 import java.util.*
@@ -30,6 +49,8 @@ import java.util.stream.Collectors
 class JDRunConfiguration(project: Project, private val factory: JDConfigurationFactory, name: String) :
     LocatableConfigurationBase<JDRunConfigurationOptions>(project, factory, name),
     RunProfileWithCompileBeforeLaunchOption {
+
+    val docker = factory.docker;
 
 
     override fun getOptions(): JDRunConfigurationOptions {
@@ -44,28 +65,18 @@ class JDRunConfiguration(project: Project, private val factory: JDConfigurationF
     }
 
     override fun getConfigurationEditor(): SettingsEditor<out RunConfiguration?> {
-        return JDForm()
+        return JDForm(project)
     }
 
     @Throws(ExecutionException::class)
     override fun getState(executor: Executor, environment: ExecutionEnvironment): RunProfileState? {
         val options = Utils.getOptions(environment)
 
-        try {
-            if (!setupContainer(options)) {
-                return null
-            }
-
-        } catch (e: IndexOutOfBoundsException) {
+        if (!setupContainer(options)) {
             return null
         }
 
-
-        if (!uploadDependencyFiles(options)) {
-            return null
-        }
-
-        return JDRunState(environment, factory.docker)
+        return JDRunState(environment, factory.docker, options)
     }
 
 
@@ -96,152 +107,84 @@ class JDRunConfiguration(project: Project, private val factory: JDConfigurationF
     }
 
     private fun checkContainer(containerId: String): ContainerCheckResponse {
-        val resp = factory.docker.inspectContainerCmd(containerId).exec()
-        val ports = resp.networkSettings.ports.toPrimitive()
+        try {
+            val resp = factory.docker.inspectContainerCmd(containerId).exec()
+            val ports = resp.networkSettings.ports.toPrimitive()
 
-        if (ports.isEmpty()) {
-            Utils.showError("Container $containerId does not expose any ports")
+            if (ports.isEmpty()) {
+                Utils.showError("Container $containerId does not expose any ports")
+                return ContainerCheckResponse(false)
+            }
+
+            if (!ports.containsKey("5005/tcp")) {
+                Utils.showError("Container $containerId must expose port 5005 for debugging")
+                return ContainerCheckResponse(false)
+            }
+
+            return ContainerCheckResponse(
+                true,
+                resp.id,
+                ports!!["5005/tcp"]!![0]["HostPort"]!!.toInt()
+            )
+
+        } catch (e: NotFoundException) {
             return ContainerCheckResponse(false)
         }
-
-        if (!ports.containsKey("5005/tcp")) {
-            Utils.showError("Container $containerId must expose port 5005 for debugging")
-            return ContainerCheckResponse(false)
-        }
-
-        return ContainerCheckResponse(
-            true,
-            resp.id,
-            ports!!["5005/tcp"]!![0]["HostPort"]!!.toInt()
-        )
     }
 
-    private fun getAvailableFiles(containerId: String): List<String> {
-        val buffer = StringBuilder()
-        val done = AtomicBoolean(false)
-        val error = arrayOf<Throwable?>(null)
+    private fun checkContainerExists(containerId: String): Boolean {
+        try {
+            val response = docker.inspectContainerCmd(containerId).exec()
+            return response.state.running ?: false
 
-        val resp: ExecCreateCmdResponse = factory.docker.execCreateCmd(containerId)
-            .withCmd("ls", "/javadeps")
-            .withAttachStdout(true)
-            .withAttachStderr(true)
-            .exec()
-
-        factory.docker.execStartCmd(resp.id)
-            .exec(object : ResultCallback<Frame> {
-                override fun onStart(closeable: Closeable) {}
-
-                override fun onNext(obj: Frame) {
-                    buffer.append(String(obj.payload))
-                }
-
-                override fun onError(throwable: Throwable) {
-                    error[0] = throwable
-                    done.set(true)
-                }
-
-                override fun onComplete() {
-                    done.set(true)
-                }
-
-                @Throws(IOException::class)
-                override fun close() {
-                    done.set(true)
-                }
-            })
-
-        while (!done.get()) {
-            try {
-                TimeUnit.MILLISECONDS.sleep(10)
-            } catch (e: Exception) {
-                e.printStackTrace()
-            }
+        } catch (e: NotFoundException) {
+            return false
         }
-
-        if (error[0] != null) {
-            throw RuntimeException("Existing deps download failed.", error[0])
-        }
-
-        return Arrays.stream(buffer.toString().split("\n".toRegex()).toTypedArray())
-            .map { obj: String -> obj.strip() }
-            .collect(Collectors.toList())
     }
 
     private fun setupContainer(options: JDRunConfigurationOptions): Boolean {
         var tmpContainerId: String? = null
 
-        // Create container if required
-        if (!options.reuseContainer || options.containerId == null || options.containerId == "") {
-            val createResp = createContainer(options)
-            if (!createResp.success) {
-                return false
-            } else {
-                tmpContainerId = createResp.id
+        // Reuse the container
+        if (options.reuseContainer) {
+            // Container exists
+            if (options.hiddenContainerId != null && options.hiddenContainerId != "") {
+                if (!checkContainerExists(options.hiddenContainerId!!)) {
+                    val statusBar = WindowManager.getInstance().getStatusBar(project);
+                    JBPopupFactory.getInstance()
+                            .createHtmlTextBalloonBuilder("Container ${options.hiddenContainerId?.substring(0, 16)} doesn't exist anymore.",
+                                MessageType.WARNING, null)
+                            .setFadeoutTime(3000)
+                            .createBalloon()
+                            .show(RelativePoint.getCenterOf(statusBar.component), Balloon.Position.above)
+                } else {
+                    return true
+                }
             }
-        } else {
-            tmpContainerId = options.containerId
         }
 
+        // Container must be created
+        val createResp = createContainer(options)
+        if (!createResp.success) {
+            Utils.showError("Failed to create container.")
+            return false
+
+        } else {
+            tmpContainerId = createResp.id
+        }
+
+        // Check if the creation succeeded
         val checkResp = checkContainer(tmpContainerId!!)
         if (!checkResp.success) {
+            Utils.showError("Failed to start container. Did it shutdown immediately?")
             return false
+
         } else {
             options.hiddenContainerId = tmpContainerId
             options.port = checkResp.port!!
         }
 
         return true
-    }
-
-    private fun uploadDependencyFiles(options: JDRunConfigurationOptions): Boolean {
-        var success = false
-
-        ProgressManager.getInstance().runProcessWithProgressSynchronously({
-            try {
-                val indicator = ProgressManager.getInstance().progressIndicator
-                indicator.isIndeterminate = false
-                indicator.text2 = ""
-                val files = OrderEnumerator.orderEntries(project).recursively().withoutSdk().classesRoots
-
-                // Create the directory if required
-                val exec = factory.docker.execCreateCmd(options.hiddenContainerId!!)
-                    .withWorkingDir("/")
-                    .withCmd("mkdir", "-p", "/javadeps")
-                    .exec()
-
-                factory.docker.execStartCmd(exec.id)
-                    .exec(CollectCallback()).await()
-
-                val existing = getAvailableFiles(options.hiddenContainerId!!)
-
-                files.forEachIndexed{i, file ->
-                    val path = (file as? FsRoot)?.path?.substring(0, file.getPath().length - 2) ?: file.path
-
-                    if (file !is FsRoot || !existing.contains(file.getName())) {
-                        indicator.text2 = file.name
-                        factory.docker.copyArchiveToContainerCmd(options.hiddenContainerId!!)
-                            .withHostResource(path)
-                            .withRemotePath("/javadeps")
-                            .exec()
-                    }
-                    indicator.fraction = i / files.size.toDouble()
-                }
-
-                success = true
-
-            } catch (e: Exception) {
-                Notifications.Bus.notify(
-                    Notification(
-                        "Java Docker",
-                        "Uploading dependencies failed",
-                        NotificationType.ERROR
-                    )
-                )
-                throw e
-            }
-        }, "Uploading dependencies and source code", true, project)
-
-        return success
     }
 
 }
@@ -251,4 +194,12 @@ private data class ContainerCreateResponse(val success: Boolean, val id: String?
 }
 private data class ContainerCheckResponse(val success: Boolean, val id: String?, val port: Int?) {
     constructor(success: Boolean) : this(success, null, null)
+}
+
+private class TTask(project: Project) : Task.Backgroundable(project, "Title") {
+    override fun run(indicator: ProgressIndicator) {
+        println("TTask start")
+        TimeUnit.SECONDS.sleep(5)
+        println("TTask end")
+    }
 }
