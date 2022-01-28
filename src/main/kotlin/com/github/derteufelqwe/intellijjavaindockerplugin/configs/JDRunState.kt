@@ -2,24 +2,22 @@ package com.github.derteufelqwe.intellijjavaindockerplugin.configs
 
 import com.github.derteufelqwe.intellijjavaindockerplugin.core.JDProcess
 import com.github.derteufelqwe.intellijjavaindockerplugin.utiliity.CollectCallback
+import com.github.derteufelqwe.intellijjavaindockerplugin.utiliity.Utils
 import com.github.dockerjava.api.DockerClient
 import com.github.dockerjava.api.async.ResultCallback
 import com.github.dockerjava.api.command.ExecCreateCmdResponse
+import com.github.dockerjava.api.exception.NotFoundException
 import com.github.dockerjava.api.model.Frame
-import com.intellij.debugger.engine.RemoteDebugProcessHandler
-import com.intellij.execution.ExecutionResult
-import com.intellij.execution.Executor
 import com.intellij.execution.configurations.CommandLineState
 import com.intellij.execution.configurations.GeneralCommandLine
-import com.intellij.execution.configurations.RunnerSettings
 import com.intellij.execution.process.*
 import com.intellij.execution.runners.ExecutionEnvironment
-import com.intellij.execution.runners.ProgramRunner
 import com.intellij.notification.Notification
 import com.intellij.notification.NotificationType
 import com.intellij.notification.Notifications
 import com.intellij.openapi.progress.ProgressManager
 import com.intellij.openapi.roots.OrderEnumerator
+import com.intellij.openapi.util.Key
 import com.intellij.openapi.vfs.newvfs.impl.FsRoot
 import java.io.Closeable
 import java.io.File
@@ -27,7 +25,6 @@ import java.io.IOException
 import java.nio.charset.Charset
 import java.nio.charset.StandardCharsets
 import java.util.*
-import java.util.concurrent.Future
 import java.util.concurrent.TimeUnit
 import java.util.concurrent.atomic.AtomicBoolean
 import java.util.stream.Collectors
@@ -40,9 +37,10 @@ class JDRunState(env: ExecutionEnvironment, private val docker: DockerClient, pr
         }
 
         val process = JDProcess(docker, environment)
-        val processHandler: ProcessHandler = Test(process, "command", StandardCharsets.UTF_8)
+        val processHandler: ProcessHandler = JDProcessHandler(process, "command", StandardCharsets.UTF_8)
 
         ProcessTerminatedListener.attach(processHandler)
+        processHandler.addProcessListener(TestListener(docker, options))
         processHandler.startNotify()
 
         return processHandler
@@ -153,7 +151,10 @@ class JDRunState(env: ExecutionEnvironment, private val docker: DockerClient, pr
 }
 
 
-class Test : KillableProcessHandler {
+/**
+ * Custom ProcessHandler, which prevents an unnecessary error
+ */
+class JDProcessHandler : KillableProcessHandler {
     constructor(commandLine: GeneralCommandLine) : super(commandLine)
     constructor(process: Process, commandLine: GeneralCommandLine) : super(process, commandLine)
     constructor(commandLine: GeneralCommandLine, withMediator: Boolean) : super(commandLine, withMediator)
@@ -167,11 +168,30 @@ class Test : KillableProcessHandler {
     )
 
 
-    override fun executeTask(task: Runnable): Future<*> {
-        return super.executeTask(task)
+    override fun destroyProcessGracefully(): Boolean {
+        // Without this the super method logs an error, which can't be prevented and causes the IDE to show an exception
+        return false
+    }
+}
+
+
+/**
+ * Listens for process termination to kill the process if necessary
+ */
+class TestListener(private val docker: DockerClient, private val options: JDRunConfigurationOptions) : ProcessListener {
+
+    override fun startNotified(event: ProcessEvent) {
+        return
     }
 
-    override fun onOSProcessTerminated(exitCode: Int) {
-        super.onOSProcessTerminated(exitCode)
+    override fun processTerminated(event: ProcessEvent) {
+        Utils.stopContainer(docker, options)
+        println("Termination done")
     }
+
+    override fun onTextAvailable(event: ProcessEvent, outputType: Key<*>) {
+        return
+    }
+
+
 }
