@@ -30,6 +30,8 @@ dependencies {
     implementation("com.github.docker-java:docker-java-core:3.2.12")
     // https://mvnrepository.com/artifact/com.github.docker-java/docker-java-transport-okhttp
     implementation("com.github.docker-java:docker-java-transport-okhttp:3.2.12")
+    // https://mvnrepository.com/artifact/com.github.fracpete/rsync4j
+    implementation("com.github.fracpete:rsync4j-all:3.2.3-8")
 }
 
 // Configure Gradle IntelliJ Plugin - read more: https://github.com/JetBrains/gradle-intellij-plugin

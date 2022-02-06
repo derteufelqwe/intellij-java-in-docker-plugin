@@ -17,7 +17,7 @@ object MyBundle : DynamicBundle(BUNDLE) {
     val CONTAINER_ID = "3e45e720f774e2ca8ea4b221e29e279b04a267991c234d1b00a34fb8b6e44edf"
 
     @JvmStatic
-    val PROCESS_ID = "jd_process_id"
+    val JVM_PROCESS_IDENTIFIER = "-Dfrom.jddocker=true"
 
 
     @Suppress("SpreadOperator")
@@ -47,3 +47,6 @@ object MyBundle : DynamicBundle(BUNDLE) {
 
 // java -classpath "/javadeps/*:/javadeps/classes" test.Main
 // , "-agentlib:jdwp=transport=dt_socket,server=y,suspend=n,address=*:5005"
+
+// Icons
+// general: projectTab

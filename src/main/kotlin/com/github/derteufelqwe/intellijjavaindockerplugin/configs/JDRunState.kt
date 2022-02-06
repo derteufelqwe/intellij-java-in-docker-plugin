@@ -1,100 +1,170 @@
 package com.github.derteufelqwe.intellijjavaindockerplugin.configs
 
 import com.github.derteufelqwe.intellijjavaindockerplugin.core.JDProcess
-import com.github.derteufelqwe.intellijjavaindockerplugin.utiliity.CollectCallback
-import com.github.derteufelqwe.intellijjavaindockerplugin.utiliity.Utils
+import com.github.derteufelqwe.intellijjavaindockerplugin.utiliity.*
 import com.github.dockerjava.api.DockerClient
-import com.github.dockerjava.api.async.ResultCallback
-import com.github.dockerjava.api.command.ExecCreateCmdResponse
-import com.github.dockerjava.api.exception.NotFoundException
-import com.github.dockerjava.api.model.Frame
+import com.github.dockerjava.core.util.CompressArchiveUtil
+import com.github.fracpete.processoutput4j.output.StreamingProcessOutput
 import com.intellij.execution.configurations.CommandLineState
-import com.intellij.execution.configurations.GeneralCommandLine
 import com.intellij.execution.process.*
 import com.intellij.execution.runners.ExecutionEnvironment
-import com.intellij.notification.Notification
-import com.intellij.notification.NotificationType
-import com.intellij.notification.Notifications
+import com.intellij.openapi.module.ModuleManager
 import com.intellij.openapi.progress.ProgressManager
 import com.intellij.openapi.roots.OrderEnumerator
 import com.intellij.openapi.util.Key
 import com.intellij.openapi.vfs.newvfs.impl.FsRoot
-import java.io.Closeable
+import com.intellij.util.io.inputStream
 import java.io.File
-import java.io.IOException
+import java.io.InputStream
 import java.nio.charset.Charset
 import java.nio.charset.StandardCharsets
-import java.util.*
-import java.util.concurrent.TimeUnit
-import java.util.concurrent.atomic.AtomicBoolean
-import java.util.stream.Collectors
+import java.nio.file.Files
 
 class JDRunState(env: ExecutionEnvironment, private val docker: DockerClient, private val options: JDRunConfigurationOptions) : CommandLineState(env) {
 
     override fun startProcess(): ProcessHandler {
+        if (!setupRSync(options)) {
+            throw RuntimeException("RSync upload failed")
+        }
+
         if (!uploadDependencyFiles(options)) {
             throw RuntimeException("Dependency upload failed")
         }
 
-        val process = JDProcess(docker, environment)
+        val process = JDProcess(docker, environment, createClasspath())
         val processHandler: ProcessHandler = JDProcessHandler(process, "command", StandardCharsets.UTF_8)
 
         ProcessTerminatedListener.attach(processHandler)
-        processHandler.addProcessListener(TestListener(docker, options))
+        processHandler.addProcessListener(ContainerStopListener(docker, options))
         processHandler.startNotify()
 
         return processHandler
     }
 
-    private fun getAvailableFiles(containerId: String): List<String> {
-        val buffer = StringBuilder()
-        val done = AtomicBoolean(false)
-        val error = arrayOf<Throwable?>(null)
 
-        val resp: ExecCreateCmdResponse = docker.execCreateCmd(containerId)
-            .withCmd("ls", "/javadeps")
-            .withAttachStdout(true)
-            .withAttachStderr(true)
-            .exec()
+    private fun createClasspath(): List<String> {
+        val module = ModuleManager.getInstance(environment.project).modules[0]
+        val files = OrderEnumerator.orderEntries(environment.project).recursively().withoutSdk().classesRoots
 
-        docker.execStartCmd(resp.id)
-            .exec(object : ResultCallback<Frame> {
-                override fun onStart(closeable: Closeable) {}
+        return files.map { (it as? FsRoot)?.path?.substring(0, it.getPath().length - 2) ?: it.path }
+    }
 
-                override fun onNext(obj: Frame) {
-                    buffer.append(String(obj.payload))
-                }
+    /**
+     * Creates a tar of the rsync files
+     */
+    private fun tarRSyncFiles(): InputStream {
+        val files = listOf("rrsync", "rsync", "rsync-ssl", "rsyncd.conf", "startRSync.sh")
+        val cl = this::class.java.classLoader
 
-                override fun onError(throwable: Throwable) {
-                    error[0] = throwable
-                    done.set(true)
-                }
+        val tarFile = Files.createTempFile("javadocker", ".tar.gz")
+        val tmpDir = Files.createTempDirectory("javadocker").toFile()
+        tmpDir.mkdir()
+        val rsyncDir = File(tmpDir, "rsync")
+        rsyncDir.mkdir()
 
-                override fun onComplete() {
-                    done.set(true)
-                }
+        val tmpFiles = mutableListOf<File>()
 
-                @Throws(IOException::class)
-                override fun close() {
-                    done.set(true)
-                }
-            })
+        for (file in files) {
+            val tmpFile = File(rsyncDir, file)
+            tmpFile.createNewFile()
+            tmpFile.writeBytes(cl.getResourceAsStream("rsync/" + file).readAllBytes())
+            tmpFiles.add(tmpFile)
+        }
 
-        while (!done.get()) {
+        CompressArchiveUtil.tar(rsyncDir.toPath(), tarFile, true, false)
+        tmpFiles.forEach(File::delete)
+
+        return tarFile.inputStream()
+    }
+
+    /**
+     * Uploads rsync to the container
+     */
+    private fun setupRSync(options: JDRunConfigurationOptions): Boolean {
+        var success = false
+
+        ProgressManager.getInstance().runProcessWithProgressSynchronously({
             try {
-                TimeUnit.MILLISECONDS.sleep(10)
+                val indicator = ProgressManager.getInstance().progressIndicator
+                indicator.isIndeterminate = false
+                indicator.fraction = 0.0
+                indicator.text2 = "Checking for RSync"
+
+                // Skip setup if RSync is already up and running
+                if (verifyRSyncWorking()) {
+                    success = true
+                    return@runProcessWithProgressSynchronously
+                }
+
+                // Copy rsync
+                indicator.fraction = 0.1
+                indicator.text2 = "Uploading RSync"
+                docker.copyArchiveToContainerCmd(options.hiddenContainerId!!)
+                    .withTarInputStream(tarRSyncFiles())
+                    .withRemotePath("/")
+                    .exec()
+
+                // Move config
+                indicator.fraction = 0.9
+                indicator.text2 = "Configuring RSync"
+                val moveExec = docker.execCreateCmd(options.hiddenContainerId!!)
+                    .withWorkingDir("/rsync")
+                    .withCmd("mv", "rsyncd.conf", "/etc/rsyncd.conf")
+                    .exec()
+
+                val cb = docker.execStartCmd(moveExec.id)
+                    .exec(CollectCallback())
+                cb.await()
+
+                if (cb.result != "") {
+                    Utils.showError("Moving rsyncd.conf failed: " + cb.result)
+                    return@runProcessWithProgressSynchronously
+                }
+
+                // Start rsync daemon
+                val startRSync = docker.execCreateCmd(options.hiddenContainerId!!)
+                    .withWorkingDir("/rsync")
+                    .withCmd("sh", "startRSync.sh")
+                    .exec()
+
+                docker.execStartCmd(startRSync.id)
+                    .exec(CollectCallback()).await()
+
+
+                // Check if RSync is running
+                indicator.fraction = 1.0
+                indicator.text2 = "Verify that RSync is working"
+               if (!verifyRSyncWorking()) {
+                    Utils.showError("Failed to start RSync.")
+                    return@runProcessWithProgressSynchronously
+                }
+
+                success = true
+
             } catch (e: Exception) {
-                e.printStackTrace()
+                Utils.showError("Failed to upload / configure RSync")
+                throw e
             }
-        }
 
-        if (error[0] != null) {
-            throw RuntimeException("Existing deps download failed.", error[0])
-        }
+        }, "Uploading and configuring RSync", true, environment.project)
 
-        return Arrays.stream(buffer.toString().split("\n".toRegex()).toTypedArray())
-            .map { obj: String -> obj.strip() }
-            .collect(Collectors.toList())
+        return success
+    }
+
+    /**
+     * Checks if RSync is working
+     */
+    private fun verifyRSyncWorking(): Boolean {
+        val rsync = WRSync()
+            .dryRun(true)
+            .source("")
+            .destination("rsync://ubuntu1:${options.rsyncPort}/files")
+
+        val owner = ErrorDetectingProcessOwner()
+        val output = StreamingProcessOutput(owner)
+        output.monitor(rsync.builder())
+
+        return !owner.error
     }
 
     private fun uploadDependencyFiles(options: JDRunConfigurationOptions): Boolean {
@@ -105,42 +175,28 @@ class JDRunState(env: ExecutionEnvironment, private val docker: DockerClient, pr
                 val indicator = ProgressManager.getInstance().progressIndicator
                 indicator.isIndeterminate = false
                 indicator.text2 = ""
-                val files = OrderEnumerator.orderEntries(environment.project).recursively().withoutSdk().classesRoots
 
-                // Create the directory if required
-                val exec = docker.execCreateCmd(options.hiddenContainerId!!)
-                    .withWorkingDir("/")
-                    .withCmd("mkdir", "-p", "/javadeps")
-                    .exec()
+                val tStart = System.currentTimeMillis()
+                val paths = createClasspath()
 
-                docker.execStartCmd(exec.id)
-                    .exec(CollectCallback()).await()
+                val rsync = WRSync()
+                    .recursive(true)
+                    .times(true)
+                    .dirs(true)
+                    .verbose(true)
+                    .update(true)
+                    .sources(paths)
+                    .destination("rsync://ubuntu1:${options.rsyncPort}/files")
 
-                val existing = getAvailableFiles(options.hiddenContainerId!!)
+                val output = StreamingProcessOutput(UploadProcessingOwner(indicator))
+                output.monitor(rsync.builder())
 
-                files.forEachIndexed{i, file ->
-                    val path = (file as? FsRoot)?.path?.substring(0, file.getPath().length - 2) ?: file.path
 
-                    if (file !is FsRoot || !existing.contains(file.getName())) {
-                        indicator.text2 = file.name
-                        docker.copyArchiveToContainerCmd(options.hiddenContainerId!!)
-                            .withHostResource(path)
-                            .withRemotePath("/javadeps")
-                            .exec()
-                    }
-                    indicator.fraction = i / files.size.toDouble()
-                }
-
+                println("Upload took: ${System.currentTimeMillis() - tStart}ms")
                 success = true
 
             } catch (e: Exception) {
-                Notifications.Bus.notify(
-                    Notification(
-                        "Java Docker",
-                        "Uploading dependencies failed",
-                        NotificationType.ERROR
-                    )
-                )
+                Utils.showError("Dependency upload failed.")
                 throw e
             }
         }, "Uploading dependencies and source code", true, environment.project)
@@ -155,18 +211,7 @@ class JDRunState(env: ExecutionEnvironment, private val docker: DockerClient, pr
  * Custom ProcessHandler, which prevents an unnecessary error
  */
 class JDProcessHandler : KillableProcessHandler {
-    constructor(commandLine: GeneralCommandLine) : super(commandLine)
-    constructor(process: Process, commandLine: GeneralCommandLine) : super(process, commandLine)
-    constructor(commandLine: GeneralCommandLine, withMediator: Boolean) : super(commandLine, withMediator)
-    constructor(process: Process, commandLine: String?) : super(process, commandLine)
     constructor(process: Process, commandLine: String?, charset: Charset) : super(process, commandLine, charset)
-    constructor(process: Process, commandLine: String?, charset: Charset, filesToDelete: MutableSet<out File>?) : super(
-        process,
-        commandLine,
-        charset,
-        filesToDelete
-    )
-
 
     override fun destroyProcessGracefully(): Boolean {
         // Without this the super method logs an error, which can't be prevented and causes the IDE to show an exception
@@ -178,7 +223,7 @@ class JDProcessHandler : KillableProcessHandler {
 /**
  * Listens for process termination to kill the process if necessary
  */
-class TestListener(private val docker: DockerClient, private val options: JDRunConfigurationOptions) : ProcessListener {
+class ContainerStopListener(private val docker: DockerClient, private val options: JDRunConfigurationOptions) : ProcessListener {
 
     override fun startNotified(event: ProcessEvent) {
         return

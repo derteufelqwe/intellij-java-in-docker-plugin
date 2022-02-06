@@ -32,7 +32,7 @@ class MyJDDebugger : GenericDebuggerRunner() {
 
         if (executor is DefaultDebugExecutor) {
             val options = Utils.getOptions(environment)
-            val port = options.port
+            val port = options.debuggerPort
 
             if (port <= 0) {
                 throw RuntimeException("Port is somehow not set.")

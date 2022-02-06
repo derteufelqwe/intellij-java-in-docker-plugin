@@ -1,14 +1,14 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <form xmlns="http://www.intellij.com/uidesigner/form/" version="1" bind-to-class="com.github.derteufelqwe.intellijjavaindockerplugin.configs.JDForm">
-  <grid id="27dc6" binding="myPanel" layout-manager="GridLayoutManager" row-count="6" column-count="4" same-size-horizontally="false" same-size-vertically="false" hgap="-1" vgap="-1">
+  <grid id="27dc6" binding="myPanel" layout-manager="GridLayoutManager" row-count="8" column-count="4" same-size-horizontally="false" same-size-vertically="false" hgap="-1" vgap="-1">
     <margin top="0" left="0" bottom="0" right="0"/>
     <constraints>
-      <xy x="20" y="20" width="500" height="423"/>
+      <xy x="20" y="20" width="500" height="398"/>
     </constraints>
     <properties/>
     <border type="none"/>
     <children>
-      <grid id="4a03b" binding="javaConfig" layout-manager="GridLayoutManager" row-count="2" column-count="1" same-size-horizontally="false" same-size-vertically="false" hgap="-1" vgap="-1">
+      <grid id="4a03b" binding="javaConfig" layout-manager="GridLayoutManager" row-count="4" column-count="1" same-size-horizontally="false" same-size-vertically="false" hgap="-1" vgap="-1">
         <margin top="0" left="0" bottom="0" right="0"/>
         <constraints>
           <grid row="0" column="0" row-span="1" col-span="4" vsize-policy="3" hsize-policy="3" anchor="0" fill="3" indent="0" use-parent-layout="false"/>
@@ -36,13 +36,31 @@
               <text value="Java configuration"/>
             </properties>
           </component>
+          <component id="12303" class="com.intellij.openapi.ui.LabeledComponent" binding="jvmArgs" custom-create="true">
+            <constraints>
+              <grid row="2" column="0" row-span="1" col-span="1" vsize-policy="0" hsize-policy="3" anchor="0" fill="1" indent="0" use-parent-layout="false"/>
+            </constraints>
+            <properties>
+              <labelLocation value="West"/>
+              <text value="JVM arguments"/>
+            </properties>
+          </component>
+          <component id="ec5cf" class="com.intellij.openapi.ui.LabeledComponent" binding="javaParams" custom-create="true">
+            <constraints>
+              <grid row="3" column="0" row-span="1" col-span="1" vsize-policy="0" hsize-policy="3" anchor="0" fill="1" indent="0" use-parent-layout="false"/>
+            </constraints>
+            <properties>
+              <labelLocation value="West"/>
+              <text value="Java parameters"/>
+            </properties>
+          </component>
         </children>
       </grid>
       <vspacer id="f8283">
         <constraints>
           <grid row="1" column="0" row-span="1" col-span="1" vsize-policy="7" hsize-policy="1" anchor="0" fill="2" indent="0" use-parent-layout="false">
             <minimum-size width="8" height="8"/>
-            <preferred-size width="10" height="10"/>
+            <preferred-size width="15" height="15"/>
             <maximum-size width="30" height="30"/>
           </grid>
         </constraints>
@@ -66,7 +84,7 @@
           </component>
           <component id="fbbde" class="javax.swing.JCheckBox" binding="reuseContainer">
             <constraints>
-              <grid row="2" column="0" row-span="1" col-span="1" vsize-policy="0" hsize-policy="3" anchor="8" fill="0" indent="0" use-parent-layout="false"/>
+              <grid row="3" column="0" row-span="1" col-span="1" vsize-policy="0" hsize-policy="3" anchor="8" fill="0" indent="0" use-parent-layout="false"/>
             </constraints>
             <properties>
               <text value="Reuse Container"/>
@@ -74,7 +92,7 @@
           </component>
           <component id="a28ec" class="com.intellij.openapi.ui.LabeledComponent" binding="dockerImage" custom-create="true">
             <constraints>
-              <grid row="1" column="0" row-span="1" col-span="2" vsize-policy="3" hsize-policy="3" anchor="0" fill="1" indent="0" use-parent-layout="false">
+              <grid row="2" column="0" row-span="1" col-span="2" vsize-policy="3" hsize-policy="3" anchor="0" fill="1" indent="0" use-parent-layout="false">
                 <preferred-size width="-1" height="20"/>
               </grid>
             </constraints>
@@ -83,32 +101,33 @@
               <text value="Docker image"/>
             </properties>
           </component>
-          <component id="2a859" class="com.intellij.openapi.ui.LabeledComponent" binding="internalContainer" custom-create="true" default-binding="true">
-            <constraints>
-              <grid row="3" column="0" row-span="1" col-span="2" vsize-policy="3" hsize-policy="3" anchor="0" fill="1" indent="0" use-parent-layout="false">
-                <preferred-size width="-1" height="20"/>
-              </grid>
-            </constraints>
-            <properties>
-              <text value="Current Docker ID"/>
-            </properties>
-          </component>
           <component id="39b01" class="javax.swing.JCheckBox" binding="removeContainer">
             <constraints>
-              <grid row="2" column="1" row-span="1" col-span="1" vsize-policy="0" hsize-policy="3" anchor="8" fill="0" indent="0" use-parent-layout="false"/>
+              <grid row="3" column="1" row-span="1" col-span="1" vsize-policy="0" hsize-policy="3" anchor="8" fill="0" indent="0" use-parent-layout="false"/>
             </constraints>
             <properties>
               <enabled value="true"/>
               <text value="Remove container on exit"/>
             </properties>
           </component>
+          <component id="2a859" class="com.intellij.openapi.ui.LabeledComponent" binding="internalContainer" custom-create="true" default-binding="true">
+            <constraints>
+              <grid row="1" column="0" row-span="1" col-span="2" vsize-policy="3" hsize-policy="3" anchor="0" fill="1" indent="0" use-parent-layout="false">
+                <preferred-size width="-1" height="20"/>
+              </grid>
+            </constraints>
+            <properties>
+              <labelLocation value="West"/>
+              <text value="Current Docker ID"/>
+            </properties>
+          </component>
         </children>
       </grid>
       <vspacer id="94697">
         <constraints>
-          <grid row="3" column="0" row-span="1" col-span="1" vsize-policy="6" hsize-policy="1" anchor="0" fill="2" indent="0" use-parent-layout="false">
+          <grid row="5" column="0" row-span="1" col-span="1" vsize-policy="6" hsize-policy="1" anchor="0" fill="2" indent="0" use-parent-layout="false">
             <minimum-size width="8" height="8"/>
-            <preferred-size width="10" height="10"/>
+            <preferred-size width="15" height="15"/>
             <maximum-size width="30" height="30"/>
           </grid>
         </constraints>
@@ -116,7 +135,7 @@
       <grid id="2511c" binding="existingContainerConfig" layout-manager="GridLayoutManager" row-count="3" column-count="1" same-size-horizontally="false" same-size-vertically="false" hgap="-1" vgap="-1">
         <margin top="0" left="0" bottom="0" right="0"/>
         <constraints>
-          <grid row="4" column="0" row-span="1" col-span="4" vsize-policy="3" hsize-policy="3" anchor="0" fill="3" indent="0" use-parent-layout="false"/>
+          <grid row="6" column="0" row-span="1" col-span="4" vsize-policy="3" hsize-policy="3" anchor="0" fill="3" indent="0" use-parent-layout="false"/>
         </constraints>
         <properties/>
         <border type="none"/>
@@ -151,6 +170,24 @@
           </component>
         </children>
       </grid>
+      <component id="f4ba8" class="com.intellij.openapi.ui.LabeledComponent" binding="exposedPorts" custom-create="true">
+        <constraints>
+          <grid row="3" column="0" row-span="1" col-span="1" vsize-policy="0" hsize-policy="3" anchor="0" fill="1" indent="0" use-parent-layout="false"/>
+        </constraints>
+        <properties>
+          <labelLocation value="West"/>
+          <text value="Ports"/>
+        </properties>
+      </component>
+      <component id="ace52" class="com.intellij.openapi.ui.LabeledComponent" binding="mounts" custom-create="true">
+        <constraints>
+          <grid row="4" column="0" row-span="1" col-span="1" vsize-policy="0" hsize-policy="3" anchor="0" fill="1" indent="0" use-parent-layout="false"/>
+        </constraints>
+        <properties>
+          <labelLocation value="West"/>
+          <text value="Mounts"/>
+        </properties>
+      </component>
     </children>
   </grid>
 </form>

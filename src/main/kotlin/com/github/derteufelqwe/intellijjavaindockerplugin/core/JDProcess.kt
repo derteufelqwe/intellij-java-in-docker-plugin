@@ -9,24 +9,24 @@ import com.github.dockerjava.api.DockerClient
 import com.github.dockerjava.api.async.ResultCallback
 import com.github.dockerjava.api.model.Frame
 import com.github.dockerjava.api.model.StreamType
-import com.intellij.debugger.engine.RemoteDebugProcessHandler
-import com.intellij.execution.KillableProcess
 import com.intellij.execution.executors.DefaultDebugExecutor
-import com.intellij.execution.lineMarker.RunLineMarkerContributor
 import com.intellij.execution.runners.ExecutionEnvironment
-import org.jetbrains.debugger.RemoteDebugConfiguration
+import com.intellij.lang.folding.FoldingBuilderEx
 import java.io.Closeable
 import java.io.IOException
 import java.io.InputStream
 import java.io.OutputStream
 import java.net.SocketException
-import java.util.concurrent.CompletableFuture
 import java.util.concurrent.TimeUnit
+import java.util.concurrent.atomic.AtomicInteger
 import java.util.regex.Pattern
 
-class JDProcess(private val docker: DockerClient, private val environment: ExecutionEnvironment) : Process() {
+class JDProcess(private val docker: DockerClient, private val environment: ExecutionEnvironment, private val classPathFiles: List<String>) : Process() {
 
-    private var exitValue = -1
+    private val RE_EXTRACT_PID = Pattern.compile("[a-zA-Z]+\\s+(\\d+).+")
+    private val RE_FIND_MAINCLASS = Pattern.compile(".+ (.+)\$")
+
+    private var exitValue = AtomicInteger(-1)
     private val options = Utils.getOptions(environment)
 
     private val output = BufferInputStream()
@@ -41,16 +41,30 @@ class JDProcess(private val docker: DockerClient, private val environment: Execu
 
 
     private fun start() {
-        TimeUnit.SECONDS.sleep(1)
+        val classPath = classPathFiles
+            .map { it.split("/").last() }
+            .map { "/javadeps/$it" }
+            .joinToString(":")
 
-        val cmd = mutableListOf("java", "-classpath", "/javadeps/*:/javadeps/classes")
+        val cmd = mutableListOf("java", "-Dfile.encoding=UTF-8", MyBundle.JVM_PROCESS_IDENTIFIER, "-classpath", classPath)
+
+        // Add JVM params
+        options.jvmArgs?.let {
+            cmd.addAll(it.split(" "))
+        }
 
         if (environment.executor is DefaultDebugExecutor) {
             cmd.add("-agentlib:jdwp=transport=dt_socket,server=y,suspend=y,address=*:5005")
         }
 
         cmd.add(options.mainClass!!)
-        cmd.add("#${MyBundle.PROCESS_ID}")
+
+        // Add java arguments
+        options.javaParams?.let {
+            cmd.add(it)
+        }
+
+        output.addData(cmd.joinToString(" ") + "\n")
 
 
         val resp = docker.execCreateCmd(Utils.getOptions(environment).hiddenContainerId!!)
@@ -62,41 +76,7 @@ class JDProcess(private val docker: DockerClient, private val environment: Execu
 
         docker.execStartCmd(resp.id)
             .withStdIn(input.input)
-            .exec(object : ResultCallback<Frame> {
-
-                override fun onStart(closeable: Closeable) {
-                    println("Start")
-                }
-
-                override fun onNext(obj: Frame) {
-                    when (obj.streamType) {
-                        StreamType.STDOUT -> output.addData(obj.payload)
-                        StreamType.STDERR -> error.addData(obj.payload)
-                        else -> throw RuntimeException("Docker sent frame from " + obj.streamType)
-                    }
-                }
-
-                override fun onError(throwable: Throwable) {
-                    if (throwable is SocketException) {
-                        if (throwable.message == "Socket closed") {
-                            return
-                        }
-                    }
-
-                    println("error")
-                    throw RuntimeException("JDProcess failed to work", throwable)
-                }
-
-                override fun onComplete() {
-                    println("complete")
-                    exitValue = 0
-                }
-
-                @Throws(IOException::class)
-                override fun close() {
-                    println("close")
-                }
-            })
+            .exec(JavaRunExecCallback(exitValue, output, error))
 
         this.execId = resp.id
     }
@@ -117,19 +97,19 @@ class JDProcess(private val docker: DockerClient, private val environment: Execu
     override fun waitFor(): Int {
         start()
 
-        while (exitValue < 0) {
+        while (exitValue.get() < 0) {
             TimeUnit.MILLISECONDS.sleep(100)
         }
 
-        return exitValue
+        return exitValue.get()
     }
 
     override fun exitValue(): Int {
-        if (exitValue < 0) {
+        if (exitValue.get() < 0) {
             throw IllegalThreadStateException()
         }
 
-        return exitValue
+        return exitValue.get()
     }
 
     override fun destroy() {
@@ -145,25 +125,18 @@ class JDProcess(private val docker: DockerClient, private val environment: Execu
         stopCount += 1
     }
 
-
     private fun shutdown(signal: String) {
-//        input.close()
-
         val containerID = Utils.getOptions(environment).hiddenContainerId!!
         val pids = getActivePIDs(containerID)
 
         pids.forEach {
             stopPid(it, containerID, signal)
         }
-
-//        output.close()
-//        error.close()
-//        exitValue = 0
     }
 
     private fun getActivePIDs(containerId: String): List<Int> {
         val res = docker.execCreateCmd(containerId)
-            .withCmd("sh", "-c", "ps aux | grep ${MyBundle.PROCESS_ID}")
+            .withCmd("sh", "-c", "ps aux | grep \\\\${MyBundle.JVM_PROCESS_IDENTIFIER}")
             .withAttachStdout(true)
             .withAttachStderr(true)
             .exec()
@@ -172,22 +145,12 @@ class JDProcess(private val docker: DockerClient, private val environment: Execu
             .exec(CollectCallback())
 
         cb.await()
-        val content = cb.result
 
-        val RE_FIND = Pattern.compile("[a-zA-Z]+\\s+(\\d+).+")
-
-        val pids = mutableListOf<Int>()
-
-        for (line in content.split("\n")) {
-            if ("java" in line) {
-                val m = RE_FIND.matcher(line)
-                if (m.matches()) {
-                    pids.add(m.group(1).toInt())
-                }
-            }
-        }
-
-        return pids
+        return cb.result.split("\n")
+            .map { it.trim() }
+            .filter { "java" in it }
+            .filter { val m = RE_FIND_MAINCLASS.matcher(it); m.matches() && m.group(1).equals(options.mainClass) }
+            .map { val m = RE_EXTRACT_PID.matcher(it); m.matches(); m.group(1).toInt() }
     }
 
     private fun stopPid(pid: Int, containerId: String, signal: String) {
@@ -201,4 +164,41 @@ class JDProcess(private val docker: DockerClient, private val environment: Execu
             .exec(CollectCallback())
     }
 
+}
+
+class JavaRunExecCallback(private val exitValue: AtomicInteger, private val output: BufferInputStream,
+                          private val error: BufferInputStream) : ResultCallback<Frame> {
+
+    override fun onStart(closeable: Closeable) {
+        println("Start")
+    }
+
+    override fun onNext(obj: Frame) {
+        when (obj.streamType) {
+            StreamType.STDOUT -> output.addData(obj.payload)
+            StreamType.STDERR -> error.addData(obj.payload)
+            else -> throw RuntimeException("Docker sent frame from " + obj.streamType)
+        }
+    }
+
+    override fun onError(throwable: Throwable) {
+        if (throwable is SocketException) {
+            if (throwable.message == "Socket closed") {
+                return
+            }
+        }
+
+        println("error")
+        throw RuntimeException("JDProcess failed to work", throwable)
+    }
+
+    override fun onComplete() {
+        println("complete")
+        exitValue.set(0)
+    }
+
+    @Throws(IOException::class)
+    override fun close() {
+        println("close")
+    }
 }
