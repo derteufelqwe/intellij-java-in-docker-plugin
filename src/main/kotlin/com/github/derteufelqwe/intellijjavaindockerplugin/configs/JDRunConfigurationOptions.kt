@@ -2,6 +2,7 @@ package com.github.derteufelqwe.intellijjavaindockerplugin.configs
 
 import com.github.derteufelqwe.intellijjavaindockerplugin.utiliity.PortInfo
 import com.github.derteufelqwe.intellijjavaindockerplugin.utiliity.Utils
+import com.github.derteufelqwe.intellijjavaindockerplugin.utiliity.VolumeInfo
 import com.intellij.execution.configurations.LocatableRunConfigurationOptions
 
 /**
@@ -76,6 +77,8 @@ class JDRunConfigurationOptions : LocatableRunConfigurationOptions() {
         get() = pMounts.getValue(this)
         set(value) = pMounts.setValue(this, value?.trim())
 
+    val parsedMounts: List<VolumeInfo>
+        get() = if (mounts != null) Utils.parseAdditionalVolumes(mounts!!) else listOf()
 
 
     // Stores the port of the running run configuration

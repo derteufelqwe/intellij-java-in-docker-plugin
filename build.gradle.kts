@@ -9,12 +9,14 @@ plugins {
     // Kotlin support
     id("org.jetbrains.kotlin.jvm") version "1.6.0"
     // Gradle IntelliJ Plugin
-    id("org.jetbrains.intellij") version "1.3.0"
+    id("org.jetbrains.intellij") version "1.4.0-SNAPSHOT"
     // Gradle Changelog Plugin
     id("org.jetbrains.changelog") version "1.3.1"
     // Gradle Qodana Plugin
     id("org.jetbrains.qodana") version "0.1.13"
+    application
 }
+
 
 group = properties("pluginGroup")
 version = properties("pluginVersion")
@@ -23,6 +25,7 @@ version = properties("pluginVersion")
 repositories {
     mavenCentral()
 }
+
 
 dependencies {
     implementation(kotlin("stdlib-jdk8"))
@@ -102,6 +105,13 @@ tasks {
                 getOrNull(properties("pluginVersion")) ?: getLatest()
             }.toHTML()
         })
+    }
+
+    // This enables a DCEVM + HotswapAgent JVM
+    runIde {
+        jbrVersion.set("11_0_14b1982.1")
+        jbrVariant.set("dcevm")
+        jvmArgs = listOf("-XX:HotswapAgent=fatjar")
     }
 
     // Configure UI tests plugin

@@ -76,6 +76,10 @@ class JDRunConfiguration(project: Project, private val factory: JDConfigurationF
         return JDRunState(environment, factory.docker, options)
     }
 
+    fun arnesd() {
+
+    }
+
     /**
      * Creates and starts a new java container
      */
@@ -89,6 +93,7 @@ class JDRunConfiguration(project: Project, private val factory: JDConfigurationF
         Utils.stopContainer(docker, options)
 
         val additionalPorts = options.parsedExposedPorts
+        val additionalMounts = options.parsedMounts
 
         val container = factory.docker.createContainerCmd(options.dockerImage!!)
             .withTty(true)  // Prevents the container from stopping
@@ -206,6 +211,10 @@ class JDRunConfiguration(project: Project, private val factory: JDConfigurationF
 
         if (options.exposedPorts != null && options.exposedPorts != "") {
             Utils.parseExposedPorts(options.exposedPorts!!)
+        }
+
+        if (options.mounts != null && options.mounts != "") {
+            Utils.parseAdditionalVolumes(options.mounts!!)
         }
 
     }

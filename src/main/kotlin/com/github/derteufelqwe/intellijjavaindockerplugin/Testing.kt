@@ -1,15 +1,35 @@
 package com.github.derteufelqwe.intellijjavaindockerplugin
 
+import com.github.derteufelqwe.intellijjavaindockerplugin.utiliity.WRSync
 import com.github.fracpete.processoutput4j.core.StreamingProcessOutputType
 import com.github.fracpete.processoutput4j.core.StreamingProcessOwner
-import com.github.fracpete.processoutput4j.output.ConsoleOutputProcessOutput
 import com.github.fracpete.processoutput4j.output.StreamingProcessOutput
-import com.github.fracpete.rsync4j.RSync
-import java.util.stream.Collectors
 
 
 fun main() {
 
+    val arr = arrayOf(1, 2, 3)
+    val list = listOf("A", "B", "C")
+    val d = Data()
+
+    println("Done")
+}
+
+
+class Data {
+
+    fun arne() {
+
+    }
+
+    fun test() {
+        println("Hello World")
+    }
+
+}
+
+
+fun testRSync() {
     val port = 49156
 
     val rsync = WRSync()
@@ -33,20 +53,4 @@ fun main() {
         }
     })
     output.monitor(rsync.builder())
-
-
-    println("Done")
-}
-
-
-class WRSync : RSync() {
-
-    override fun options(): MutableList<String> {
-        if (this.getRsh().isEmpty()) {
-            return super.options()
-                .filter { o -> !o.startsWith("--rsh") } as MutableList<String>
-        }
-
-        return super.options()
-    }
 }

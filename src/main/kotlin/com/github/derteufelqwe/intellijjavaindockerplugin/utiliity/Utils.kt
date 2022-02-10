@@ -28,6 +28,7 @@ import kotlin.jvm.Throws
 object Utils {
 
     private val RE_PORT_CONFIG = Pattern.compile("^([0-9]+)(:([0-9]+))?(\\/([a-z]+))?\$")
+    private val RE_VOLUME_CONFIG = Pattern.compile("^([\\w\\/\"' ]+)(:([\\w\\/\"' ]+))(:([a-z]+))?\$")
 
     @JvmStatic
     fun getOptions(env: ExecutionEnvironment): JDRunConfigurationOptions {
@@ -98,6 +99,26 @@ object Utils {
         return res
     }
 
+    @JvmStatic
+    fun parseAdditionalVolumes(data: String) : List<VolumeInfo> {
+        val splits = data.splitWithQuotes()
+        val res = mutableListOf<VolumeInfo>()
+
+        for (split in splits) {
+            val m = RE_VOLUME_CONFIG.matcher(split)
+            if (!m.matches()) {
+                throw RuntimeConfigurationError("Invalid volume config.")
+            }
+
+            val volumeInfo = VolumeInfo(m.group(1), m.group(3), if (m.group(5) == null) null else m.group(5).trim().lowercase())
+            volumeInfo.validate()
+            res.add(volumeInfo)
+        }
+
+
+        return res
+    }
+
 }
 
 class PortInfo(val source: Int, val target: String?, val protocol: String) {
@@ -131,6 +152,17 @@ class PortInfo(val source: Int, val target: String?, val protocol: String) {
             Ports.Binding("0.0.0.0", target),
             getExposedPort()
         )
+    }
+
+}
+
+class VolumeInfo(val source: String, val target: String, val mode: String?) {
+
+    @Throws(RuntimeConfigurationError::class)
+    fun validate() {
+        if (mode != null && mode !in listOf("ro", "rw")) {
+            throw RuntimeConfigurationError("Mount mode must be ro, rw or nothing")
+        }
     }
 
 }
