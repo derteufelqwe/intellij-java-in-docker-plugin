@@ -70,7 +70,6 @@ public class JDForm extends SettingsEditor<JDRunConfiguration> {
             existingContainerId.setEnabled(cb.isSelected());
         });
 
-
     }
 
     @Override
@@ -129,6 +128,8 @@ public class JDForm extends SettingsEditor<JDRunConfiguration> {
         dockerImage.setEnabled(enabled);
         reuseContainer.setEnabled(enabled);
         removeContainer.setEnabled(enabled);
+        exposedPorts.setEnabled(enabled);
+        mounts.setEnabled(enabled);
     }
 
 }

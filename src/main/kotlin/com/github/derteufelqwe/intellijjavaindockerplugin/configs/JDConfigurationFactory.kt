@@ -1,5 +1,8 @@
 package com.github.derteufelqwe.intellijjavaindockerplugin.configs
 
+import com.github.derteufelqwe.intellijjavaindockerplugin.settings.JDSettingsState
+import com.github.derteufelqwe.intellijjavaindockerplugin.settings.Protocol
+import com.github.derteufelqwe.intellijjavaindockerplugin.utiliity.Utils
 import com.github.dockerjava.api.DockerClient
 import com.github.dockerjava.core.DefaultDockerClientConfig
 import com.github.dockerjava.core.DockerClientImpl
@@ -12,8 +15,16 @@ import com.intellij.openapi.project.Project
 
 class JDConfigurationFactory(type: ConfigurationType) : ConfigurationFactory(type) {
 
-    val docker = createDockerConnection()
+    val docker: DockerClient
 
+    init {
+        val settings = JDSettingsState.getInstance()
+        val host = when(settings.protocol) {
+            Protocol.UNIX -> settings.socket
+            Protocol.TCP -> settings.host
+        }
+        docker = Utils.createDockerConnection("${settings.protocol.text}://$host")
+    }
 
     override fun getId(): String {
         return JDRunConfigType.ID
@@ -31,20 +42,5 @@ class JDConfigurationFactory(type: ConfigurationType) : ConfigurationFactory(typ
         );
     }
 
-
-    private fun createDockerConnection(): DockerClient {
-        val config = DefaultDockerClientConfig.createDefaultConfigBuilder()
-            .withDockerHost("tcp://ubuntu1:2375")
-            .withDockerTlsVerify(false)
-            .build()
-
-        val client = OkDockerHttpClient.Builder()
-            .dockerHost(config.dockerHost)
-            .sslConfig(config.sslConfig)
-            .connectTimeout(30)
-            .build()
-
-        return DockerClientImpl.getInstance(config, client)
-    }
 
 }

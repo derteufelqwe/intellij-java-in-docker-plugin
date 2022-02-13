@@ -5,10 +5,10 @@ import com.github.derteufelqwe.intellijjavaindockerplugin.configs.JDRunConfigura
 import com.github.dockerjava.api.DockerClient
 import com.github.dockerjava.api.exception.NotFoundException
 import com.github.dockerjava.api.exception.NotModifiedException
-import com.github.dockerjava.api.model.ExposedPort
-import com.github.dockerjava.api.model.InternetProtocol
-import com.github.dockerjava.api.model.PortBinding
-import com.github.dockerjava.api.model.Ports
+import com.github.dockerjava.api.model.*
+import com.github.dockerjava.core.DefaultDockerClientConfig
+import com.github.dockerjava.core.DockerClientImpl
+import com.github.dockerjava.okhttp.OkDockerHttpClient
 import com.intellij.execution.configurations.RuntimeConfigurationError
 import com.intellij.execution.runners.ExecutionEnvironment
 import com.intellij.notification.Notification
@@ -77,8 +77,8 @@ object Utils {
 
     @JvmStatic
     @Throws(RuntimeConfigurationError::class)
-    fun parseExposedPorts(data: String) : List<PortInfo> {
-        val splits = data.split(" ")
+    fun parseExposedPorts(data: String?) : List<PortInfo> {
+        val splits = data?.split(" ") ?: listOf()
         val res = mutableListOf<PortInfo>()
 
         for (split in splits) {
@@ -100,8 +100,9 @@ object Utils {
     }
 
     @JvmStatic
-    fun parseAdditionalVolumes(data: String) : List<VolumeInfo> {
-        val splits = data.splitWithQuotes()
+    @Throws(RuntimeConfigurationError::class)
+    fun parseAdditionalVolumes(data: String?) : List<VolumeInfo> {
+        val splits = data?.splitWithQuotes() ?: listOf()
         val res = mutableListOf<VolumeInfo>()
 
         for (split in splits) {
@@ -115,12 +116,30 @@ object Utils {
             res.add(volumeInfo)
         }
 
-
         return res
+    }
+
+    @JvmStatic
+    fun createDockerConnection(url: String): DockerClient {
+        val config = DefaultDockerClientConfig.createDefaultConfigBuilder()
+            .withDockerHost(url)
+            .withDockerTlsVerify(false)
+            .build()
+
+        val client = OkDockerHttpClient.Builder()
+            .dockerHost(config.dockerHost)
+            .sslConfig(config.sslConfig)
+            .connectTimeout(30)
+            .build()
+
+        return DockerClientImpl.getInstance(config, client)
     }
 
 }
 
+/**
+ * Holds the exposed ports, specified by the user
+ */
 class PortInfo(val source: Int, val target: String?, val protocol: String) {
 
     @Throws(RuntimeConfigurationError::class)
@@ -154,8 +173,14 @@ class PortInfo(val source: Int, val target: String?, val protocol: String) {
         )
     }
 
+    override fun toString(): String {
+        return "PortInfo($source:$target/${getProtocol().name.lowercase()})"
+    }
 }
 
+/**
+ * Holds the mounted volumes, specified by the user
+ */
 class VolumeInfo(val source: String, val target: String, val mode: String?) {
 
     @Throws(RuntimeConfigurationError::class)
@@ -165,4 +190,15 @@ class VolumeInfo(val source: String, val target: String, val mode: String?) {
         }
     }
 
+    fun getMount() : Mount {
+        return Mount()
+            .withType(if (source.startsWith("/")) MountType.BIND else MountType.VOLUME)
+            .withSource(source)
+            .withTarget(target)
+            .withReadOnly(mode == "ro")
+    }
+
+    override fun toString(): String {
+        return "VolumeInfo($source:$target/$mode)"
+    }
 }

@@ -76,9 +76,6 @@ class JDRunConfiguration(project: Project, private val factory: JDConfigurationF
         return JDRunState(environment, factory.docker, options)
     }
 
-    fun arnesd() {
-
-    }
 
     /**
      * Creates and starts a new java container
@@ -92,8 +89,8 @@ class JDRunConfiguration(project: Project, private val factory: JDConfigurationF
         // Stop the old container if you just removed the 'reuse container' flag
         Utils.stopContainer(docker, options)
 
-        val additionalPorts = options.parsedExposedPorts
-        val additionalMounts = options.parsedMounts
+        val additionalPorts = Utils.parseExposedPorts(options.exposedPorts)
+        val additionalMounts = Utils.parseAdditionalVolumes(options.mounts)
 
         val container = factory.docker.createContainerCmd(options.dockerImage!!)
             .withTty(true)  // Prevents the container from stopping
@@ -115,6 +112,9 @@ class JDRunConfiguration(project: Project, private val factory: JDConfigurationF
                             ExposedPort(12000, InternetProtocol.TCP)
                         ),
                         *additionalPorts.map { it.getPortBinding() }.toTypedArray() // Add user specified ports (2)
+                    )
+                    .withMounts(
+                        additionalMounts.map { it.getMount() }
                     )
             )
             .exec()
@@ -202,7 +202,7 @@ class JDRunConfiguration(project: Project, private val factory: JDConfigurationF
     }
 
     /**
-     * Shows errors at the bottom
+     * Shows errors at the bottom of the run configuration when something is faulty
      */
     override fun checkConfiguration() {
         if (options.mainClass == null || options.mainClass == "") {

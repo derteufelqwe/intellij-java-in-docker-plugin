@@ -39,3 +39,27 @@ To keep everything working, do not remove `<!-- ... -->` sections.
 Plugin based on the [IntelliJ Platform Plugin Template][template].
 
 [template]: https://github.com/JetBrains/intellij-platform-plugin-template
+
+
+# Usage
+## Add Custom exposed ports or mounted volumes
+If you want to expose additional ports, you can specify them like this. Multiple port definitions are separated by spaces.
+```
+host:container(/protocol)
+80:80/tcp
+5432:5432
+```
+
+To mount volumes you add the following. Multiple mounts are separated by spaces.
+```
+/path/to/folder:/path/in/container(:type)
+/tmp:/tmp:ro
+/tmp:/tmp:rw
+/home/user:/user
+```
+Volumes can also be mounted
+```
+volume:/path/in/container:rw
+volume:/path/in/container:ro
+volume:/path/in/container
+```

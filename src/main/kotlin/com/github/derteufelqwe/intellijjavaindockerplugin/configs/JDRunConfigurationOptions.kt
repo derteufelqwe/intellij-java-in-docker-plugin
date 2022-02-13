@@ -68,18 +68,11 @@ class JDRunConfigurationOptions : LocatableRunConfigurationOptions() {
         get() = pExposedPorts.getValue(this)
         set(value) = pExposedPorts.setValue(this, value?.trim())
 
-    val parsedExposedPorts: List<PortInfo>
-        get() = if (exposedPorts != null) Utils.parseExposedPorts(exposedPorts!!) else listOf()
-
     // Configures additional container mounts
     private val pMounts = string("").provideDelegate(this, "mounts")
     var mounts: String?
         get() = pMounts.getValue(this)
         set(value) = pMounts.setValue(this, value?.trim())
-
-    val parsedMounts: List<VolumeInfo>
-        get() = if (mounts != null) Utils.parseAdditionalVolumes(mounts!!) else listOf()
-
 
     // Stores the port of the running run configuration
     private val pDebuggerPort = property(-1).provideDelegate(this, "debuggerPort")

@@ -15,6 +15,10 @@
         <programRunner id="Run" implementation="com.github.derteufelqwe.intellijjavaindockerplugin.core.MyJDRunner" order="first"/>
         <programRunner id="Debug" implementation="com.github.derteufelqwe.intellijjavaindockerplugin.core.MyJDDebugger" order="last"/>
         <notificationGroup id="Java Docker" displayType="BALLOON"/>
+        <applicationService serviceImplementation="com.github.derteufelqwe.intellijjavaindockerplugin.settings.JDSettingsState"/>
+        <applicationConfigurable parentId="tools" instance="com.github.derteufelqwe.intellijjavaindockerplugin.settings.SettingsConfigurable"
+                                 id="com.github.derteufelqwe.intellijjavaindockerplugin.settings.SettingsConfigurable"
+                                 displayName="Java Docker"/>
     </extensions>
 
     <applicationListeners>
